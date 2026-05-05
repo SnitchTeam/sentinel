@@ -724,6 +724,111 @@ namespace Sentinel.Tests
             Assert.True(_plugin.HasPermission(null, "sentinel.spectate"));
         }
 
+        // Fix: re-spectate position loss — VAL-ADMIN-012
+        [Fact]
+        public void Spectate_Respect_AlreadySpectating_Rejects()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin", 10, 20, 30);
+            var targetA = CreatePlayer(76561190000000002, "TargetA", 50, 60, 70);
+            var targetB = CreatePlayer(76561190000000003, "TargetB", 80, 90, 100);
+            _mockPermission.Grant(admin.UserIDString, "sentinel.spectate");
+
+            _plugin.ExecuteSpectate(admin, "TargetA", out _);
+            var result = _plugin.ExecuteSpectate(admin, "TargetB", out var error);
+
+            Assert.False(result);
+            Assert.Equal("Already spectating TargetA — exit first", error);
+        }
+
+        [Fact]
+        public void Spectate_Respect_OriginalPositionPreserved()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin", 10, 20, 30);
+            var targetA = CreatePlayer(76561190000000002, "TargetA", 50, 60, 70);
+            var targetB = CreatePlayer(76561190000000003, "TargetB", 80, 90, 100);
+            _mockPermission.Grant(admin.UserIDString, "sentinel.spectate");
+
+            _plugin.ExecuteSpectate(admin, "TargetA", out _);
+            _plugin.ExecuteSpectate(admin, "TargetB", out _);
+
+            var state = _plugin.GetSpectateState(admin.UserIDString);
+            Assert.NotNull(state);
+            Assert.Equal(10f, state!.OriginalPosition.x);
+            Assert.Equal(20f, state.OriginalPosition.y);
+            Assert.Equal(30f, state.OriginalPosition.z);
+        }
+
+        [Fact]
+        public void Spectate_Respect_OriginalRotationPreserved()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin", 0, 0, 0);
+            admin.Rotation = new Vector3(0, 45, 0);
+            var targetA = CreatePlayer(76561190000000002, "TargetA");
+            var targetB = CreatePlayer(76561190000000003, "TargetB");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.spectate");
+
+            _plugin.ExecuteSpectate(admin, "TargetA", out _);
+            _plugin.ExecuteSpectate(admin, "TargetB", out _);
+
+            var state = _plugin.GetSpectateState(admin.UserIDString);
+            Assert.NotNull(state);
+            Assert.Equal(45f, state!.OriginalRotation.y);
+        }
+
+        [Fact]
+        public void Spectate_Respect_ExitRestoresFirstOriginalPosition()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin", 10, 20, 30);
+            var targetA = CreatePlayer(76561190000000002, "TargetA", 50, 60, 70);
+            var targetB = CreatePlayer(76561190000000003, "TargetB", 80, 90, 100);
+            _mockPermission.Grant(admin.UserIDString, "sentinel.spectate");
+
+            _plugin.ExecuteSpectate(admin, "TargetA", out _);
+            admin.Position = new Vector3(100, 200, 300);
+            _plugin.ExecuteSpectate(admin, "TargetB", out _); // should fail
+            admin.Position = new Vector3(400, 500, 600);
+
+            var exitResult = _plugin.ExecuteExitSpectate(admin, out var exitError);
+
+            Assert.True(exitResult);
+            Assert.Empty(exitError);
+            Assert.Equal(10f, admin.Position.x);
+            Assert.Equal(20f, admin.Position.y);
+            Assert.Equal(30f, admin.Position.z);
+        }
+
+        [Fact]
+        public void Spectate_Respect_FailedReSpectate_GeneratesAuditRow()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var targetA = CreatePlayer(76561190000000002, "TargetA");
+            var targetB = CreatePlayer(76561190000000003, "TargetB");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.spectate");
+
+            _plugin.ExecuteSpectate(admin, "TargetA", out _);
+            _plugin.ExecuteSpectate(admin, "TargetB", out _);
+
+            var rows = GetAuditRows("spectate");
+            Assert.Equal(2, rows.Count);
+            Assert.True(rows[0].Success); // first enter succeeds
+            Assert.False(rows[1].Success); // second enter fails
+            Assert.Contains("TargetA", rows[1].DetailsJson);
+        }
+
+        [Fact]
+        public void Spectate_Respect_TargetNameInState()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var targetA = CreatePlayer(76561190000000002, "TargetA");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.spectate");
+
+            _plugin.ExecuteSpectate(admin, "TargetA", out _);
+
+            var state = _plugin.GetSpectateState(admin.UserIDString);
+            Assert.NotNull(state);
+            Assert.Equal("TargetA", state!.TargetName);
+        }
+
         // Helper class that uses the base IsValidTeleportDestination (not the override)
         private class TerrainValidatingSentinel : SentinelPlugin
         {

@@ -8,6 +8,7 @@ namespace Oxide.Plugins
     {
         public string AdminSteamId { get; set; } = "";
         public string? TargetSteamId { get; set; }
+        public string TargetName { get; set; } = "";
         public Vector3 OriginalPosition { get; set; }
         public Vector3 OriginalRotation { get; set; }
         public bool IsSpectating { get; set; }
@@ -108,11 +109,20 @@ namespace Oxide.Plugins
                 return false;
             }
 
+            if (_spectateStates.TryGetValue(actorId, out var existingState) && existingState.IsSpectating)
+            {
+                error = $"Already spectating {existingState.TargetName} — exit first";
+                LogAuditAction(actorId, actorName, target.UserIDString, target.displayName, "spectate", "enter", null, false,
+                    $"{{\"targetSteamId\":\"{target.UserIDString}\",\"action\":\"enter\",\"error\":\"Already spectating {existingState.TargetName}\"}}");
+                return false;
+            }
+
             // Save original state
             _spectateStates[actorId] = new SpectateState
             {
                 AdminSteamId = actorId,
                 TargetSteamId = target.UserIDString,
+                TargetName = target.displayName,
                 OriginalPosition = admin.Position,
                 OriginalRotation = admin.Rotation,
                 IsSpectating = true
