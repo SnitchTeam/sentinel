@@ -12,7 +12,7 @@ namespace Oxide.Plugins
         private const int ConsoleBufferEvictionBatch = 100;
         private const int ConsoleBufferEvictionThreshold = ConsoleBufferMaxLines + ConsoleBufferEvictionBatch;
 
-        public void CaptureConsoleLine(string message, string level = "INFO")
+        public void CaptureConsoleLine(string? message, string level = "INFO")
         {
             if (string.IsNullOrEmpty(message)) return;
             _consoleBuffer.Add($"[{level}] {message}");

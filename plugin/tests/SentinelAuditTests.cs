@@ -671,7 +671,7 @@ namespace Sentinel.Tests
             }
 
             var results = _plugin.QueryAuditLog(fromTimestamp: baseTime + 15);
-            Assert.Equal(1, results.Count);
+            Assert.Single(results);
             Assert.Equal("actor3", results[0].ActorSteamId);
             Assert.All(results, r => Assert.True(r.Timestamp >= baseTime + 15));
         }
