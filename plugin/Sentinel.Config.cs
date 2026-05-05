@@ -73,6 +73,12 @@ namespace Oxide.Plugins
         public bool PersistOverrides { get; set; } = true;
     }
 
+    public class CuiPanelConfig
+    {
+        public string Hotkey { get; set; } = "K";
+        public bool HotkeyEnabled { get; set; } = true;
+    }
+
     public class SentinelConfig
     {
         public DatabaseConfig Database { get; set; } = new();
@@ -81,6 +87,7 @@ namespace Oxide.Plugins
         public BansConfig Bans { get; set; } = new();
         public GroupsConfig Groups { get; set; } = new();
         public WorldConfig World { get; set; } = new();
+        public CuiPanelConfig Cui { get; set; } = new();
     }
 
     public partial class Sentinel

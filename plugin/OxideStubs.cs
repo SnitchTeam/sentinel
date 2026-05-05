@@ -90,7 +90,8 @@ namespace Oxide.Core
         public class Arg
         {
             public string[] Args { get; set; } = System.Array.Empty<string>();
-            public Oxide.Plugins.BasePlayer? Player() => null;
+            public Oxide.Plugins.BasePlayer? _player { get; set; }
+            public Oxide.Plugins.BasePlayer? Player() => _player;
         }
     }
 }
@@ -296,6 +297,12 @@ namespace Oxide.Plugins
         }
     }
 
+    public class InputState
+    {
+        public int current { get; set; }
+        public int previous { get; set; }
+    }
+
     public static class CuiHelper
     {
         private static readonly System.Text.Json.JsonSerializerOptions _options = new()
@@ -306,6 +313,8 @@ namespace Oxide.Plugins
 
         public static string ToJson(CuiElementContainer container) => System.Text.Json.JsonSerializer.Serialize(container, _options);
         public static string GetGuid() => Guid.NewGuid().ToString("N")[..8];
+        public static void AddUi(BasePlayer player, CuiElementContainer container) { }
+        public static void DestroyUi(BasePlayer player, string name) { }
     }
 
     public class CuiComponentConverter : System.Text.Json.Serialization.JsonConverter<ICuiComponent>
