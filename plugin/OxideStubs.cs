@@ -85,6 +85,28 @@ namespace Oxide.Plugins
 {
     using Oxide.Core.Plugins;
 
+    public struct Vector3
+    {
+        public float x;
+        public float y;
+        public float z;
+
+        public Vector3(float x, float y, float z)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x + b.x, a.y + b.y, a.z + b.z);
+        public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x - b.x, a.y - b.y, a.z - b.z);
+        public static Vector3 operator *(Vector3 a, float d) => new(a.x * d, a.y * d, a.z * d);
+
+        public float Magnitude => (float)System.Math.Sqrt(x * x + y * y + z * z);
+
+        public static float Distance(Vector3 a, Vector3 b) => (a - b).Magnitude;
+    }
+
     [System.AttributeUsage(System.AttributeTargets.Method, Inherited = false)]
     public class ChatCommandAttribute : System.Attribute
     {
@@ -104,8 +126,13 @@ namespace Oxide.Plugins
         public string UserIDString { get; set; } = "0";
         public string displayName { get; set; } = "Unknown";
         public string? Address { get; set; }
+        public virtual Vector3 Position { get; set; } = new Vector3(0, 0, 0);
+        public virtual Vector3 Rotation { get; set; } = new Vector3(0, 0, 0);
         public virtual void Kick(string reason) { }
         public virtual void ChatMessage(string message) { }
+        public virtual void SendNetworkUpdate() { }
+        public virtual void UpdateSpectating() { }
+        public virtual void SetPlayerFlag(string flag, bool value) { }
 
         public static System.Collections.Generic.List<BasePlayer> activePlayerList { get; } = new();
     }
