@@ -135,6 +135,55 @@ namespace Oxide.Plugins
         public ConsoleCommandAttribute(string name) => Name = name;
     }
 
+    public class ItemDefinition
+    {
+        public string shortname { get; set; } = "";
+        public string displayName { get; set; } = "";
+        public int stackable { get; set; } = 1;
+    }
+
+    public class Item
+    {
+        public ItemDefinition info { get; set; } = new ItemDefinition();
+        public int amount { get; set; } = 0;
+
+        public virtual void Drop(Vector3 position, Vector3 velocity) { }
+    }
+
+    public class ItemContainer
+    {
+        public int capacity { get; set; } = 24;
+        public System.Collections.Generic.List<Item> itemList { get; set; } = new();
+    }
+
+    public class PlayerInventory
+    {
+        public ItemContainer containerMain { get; set; } = new ItemContainer();
+
+        public virtual bool GiveItem(Item item, ItemContainer? container = null)
+        {
+            var target = container ?? containerMain;
+            if (target.itemList.Count < target.capacity)
+            {
+                target.itemList.Add(item);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public static class ItemManager
+    {
+        public static System.Collections.Generic.List<ItemDefinition> itemList { get; set; } = new();
+
+        public static Item? CreateByName(string shortname, int amount)
+        {
+            var def = itemList.Find(d => d.shortname.Equals(shortname, System.StringComparison.OrdinalIgnoreCase));
+            if (def == null) return null;
+            return new Item { info = def, amount = amount };
+        }
+    }
+
     public class BasePlayer
     {
         public string UserIDString { get; set; } = "0";
@@ -142,6 +191,7 @@ namespace Oxide.Plugins
         public string? Address { get; set; }
         public virtual Vector3 Position { get; set; } = new Vector3(0, 0, 0);
         public virtual Vector3 Rotation { get; set; } = new Vector3(0, 0, 0);
+        public PlayerInventory inventory { get; set; } = new PlayerInventory();
         public virtual void Kick(string reason) { }
         public virtual void ChatMessage(string message) { }
         public virtual void SendNetworkUpdate() { }
