@@ -13,6 +13,7 @@ namespace Oxide.Plugins
             InitializeRuntimeBridge();
             InitializeDatabase(GetDatabasePath());
             RegisterPermissions();
+            InitializeDefaultGroups();
             EmitBootBanner();
         }
 

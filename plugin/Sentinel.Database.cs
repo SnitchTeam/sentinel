@@ -49,6 +49,18 @@ namespace Oxide.Plugins
             Puts($"[Sentinel] SQLite journal mode: {result}");
         }
 
+        private bool ColumnExists(string tableName, string columnName)
+        {
+            using var command = _dbConnection!.CreateCommand();
+            command.CommandText = $"PRAGMA table_info({tableName});";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                if (reader.GetString(1) == columnName) return true;
+            }
+            return false;
+        }
+
         private void CreateSchema()
         {
             var tables = new[]
@@ -84,7 +96,8 @@ namespace Oxide.Plugins
                     title TEXT,
                     permissions_json TEXT,
                     parent_group TEXT,
-                    created_at INTEGER NOT NULL
+                    created_at INTEGER NOT NULL,
+                    system_protected INTEGER NOT NULL DEFAULT 0
                 );",
                 @"CREATE TABLE IF NOT EXISTS sentinel_group_members (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,6 +155,21 @@ namespace Oxide.Plugins
                 using var command = _dbConnection!.CreateCommand();
                 command.CommandText = sql;
                 command.ExecuteNonQuery();
+            }
+
+            // Migrate: add system_protected column to existing databases
+            if (!ColumnExists("sentinel_groups", "system_protected"))
+            {
+                try
+                {
+                    using var command = _dbConnection!.CreateCommand();
+                    command.CommandText = "ALTER TABLE sentinel_groups ADD COLUMN system_protected INTEGER NOT NULL DEFAULT 0;";
+                    command.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    _runtimeBridge?.LogWarning($"[Sentinel] Migration warning: {ex.Message}");
+                }
             }
 
             Puts("[Sentinel] Database schema initialized.");

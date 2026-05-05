@@ -66,6 +66,20 @@ namespace Oxide.Core.Libraries
     {
         public virtual bool UserHasPermission(string id, string perm) => false;
         public virtual void RegisterPermission(string perm, Oxide.Plugins.RustPlugin owner) { }
+
+        public virtual bool CreateGroup(string group, string title, int rank) => true;
+        public virtual bool RemoveGroup(string group) => true;
+        public virtual bool GroupExists(string group) => false;
+        public virtual string[] GetGroups() => System.Array.Empty<string>();
+        public virtual string[] GetGroupPermissions(string group) => System.Array.Empty<string>();
+        public virtual void GrantGroupPermission(string group, string perm, Oxide.Plugins.RustPlugin owner) { }
+        public virtual void RevokeGroupPermission(string group, string perm) { }
+        public virtual void AddUserGroup(string id, string group) { }
+        public virtual void RemoveUserGroup(string id, string group) { }
+        public virtual string[] GetUsersInGroup(string group) => System.Array.Empty<string>();
+        public virtual string[] GetUserGroups(string id) => System.Array.Empty<string>();
+        public virtual bool SetGroupTitle(string group, string title) => true;
+        public virtual bool SetGroupParent(string group, string parent) => true;
     }
 }
 
