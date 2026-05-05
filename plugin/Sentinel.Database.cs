@@ -130,6 +130,15 @@ namespace Oxide.Plugins
                     std_dev REAL NOT NULL,
                     sample_count INTEGER NOT NULL,
                     last_updated INTEGER NOT NULL
+                );",
+                @"CREATE TABLE IF NOT EXISTS sentinel_warnings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    target_id TEXT NOT NULL UNIQUE,
+                    target_name TEXT,
+                    warn_count INTEGER NOT NULL DEFAULT 1,
+                    last_reason TEXT,
+                    last_warned_at INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL
                 );"
             };
 
@@ -150,7 +159,8 @@ namespace Oxide.Plugins
                 "CREATE INDEX IF NOT EXISTS idx_group_members_group ON sentinel_group_members(group_id);",
                 "CREATE INDEX IF NOT EXISTS idx_group_members_steam ON sentinel_group_members(steam_id);",
                 "CREATE INDEX IF NOT EXISTS idx_ai_log_timestamp ON sentinel_ai_log(timestamp);",
-                "CREATE INDEX IF NOT EXISTS idx_baselines_steam_metric ON sentinel_baselines(steam_id, metric_name);"
+                "CREATE INDEX IF NOT EXISTS idx_baselines_steam_metric ON sentinel_baselines(steam_id, metric_name);",
+                "CREATE INDEX IF NOT EXISTS idx_warnings_target_id ON sentinel_warnings(target_id);"
             };
 
             foreach (var sql in indexes)

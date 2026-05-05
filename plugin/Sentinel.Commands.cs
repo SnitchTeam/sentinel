@@ -183,13 +183,69 @@ namespace Oxide.Plugins
                 return false;
             }
 
+            var warnCount = PersistWarn(target.UserIDString, target.displayName, reason);
+
             var state = GetOrCreateModerationState(target.UserIDString);
-            state.WarnCount++;
-            target.ChatMessage($"[Sentinel] WARNING: {reason} (Total warnings: {state.WarnCount})");
+            state.WarnCount = warnCount;
+            target.ChatMessage($"[Sentinel] WARNING: {reason} (Total warnings: {warnCount})");
 
             LogAuditAction(actorId, actorName, target.UserIDString, target.displayName, "warn", reason, null, true,
-                $"{{\"warnCount\":{state.WarnCount}}}");
+                $"{{\"warnCount\":{warnCount}}}");
             return true;
+        }
+
+        private int PersistWarn(string targetId, string targetName, string reason)
+        {
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            int warnCount = 1;
+
+            if (_dbConnection != null)
+            {
+                try
+                {
+                    using var selectCmd = _dbConnection.CreateCommand();
+                    selectCmd.CommandText = "SELECT warn_count FROM sentinel_warnings WHERE target_id = @targetId;";
+                    selectCmd.Parameters.AddWithValue("@targetId", targetId);
+                    var existing = selectCmd.ExecuteScalar();
+
+                    if (existing != null && existing != DBNull.Value)
+                    {
+                        warnCount = Convert.ToInt32(existing) + 1;
+                        using var updateCmd = _dbConnection.CreateCommand();
+                        updateCmd.CommandText = @"
+                            UPDATE sentinel_warnings
+                            SET warn_count = @count,
+                                target_name = @name,
+                                last_reason = @reason,
+                                last_warned_at = @now
+                            WHERE target_id = @targetId;";
+                        updateCmd.Parameters.AddWithValue("@count", warnCount);
+                        updateCmd.Parameters.AddWithValue("@name", targetName);
+                        updateCmd.Parameters.AddWithValue("@reason", reason);
+                        updateCmd.Parameters.AddWithValue("@now", now);
+                        updateCmd.Parameters.AddWithValue("@targetId", targetId);
+                        updateCmd.ExecuteNonQuery();
+                    }
+                    else
+                    {
+                        using var insertCmd = _dbConnection.CreateCommand();
+                        insertCmd.CommandText = @"
+                            INSERT INTO sentinel_warnings (target_id, target_name, warn_count, last_reason, last_warned_at, created_at)
+                            VALUES (@targetId, @name, 1, @reason, @now, @now);";
+                        insertCmd.Parameters.AddWithValue("@targetId", targetId);
+                        insertCmd.Parameters.AddWithValue("@name", targetName);
+                        insertCmd.Parameters.AddWithValue("@reason", reason);
+                        insertCmd.Parameters.AddWithValue("@now", now);
+                        insertCmd.ExecuteNonQuery();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _runtimeBridge?.LogError($"[Sentinel] PersistWarn failed: {ex.Message}");
+                }
+            }
+
+            return warnCount;
         }
 
         [ConsoleCommand("sentinel.warn")]

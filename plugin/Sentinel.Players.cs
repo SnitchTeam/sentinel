@@ -114,9 +114,38 @@ namespace Oxide.Plugins
             if (!_moderationStates.TryGetValue(steamId, out var state))
             {
                 state = new PlayerModerationState();
+                var persistedCount = GetWarnCountFromDatabase(steamId);
+                state.WarnCount = persistedCount;
                 _moderationStates[steamId] = state;
             }
             return state;
+        }
+
+        public void ClearModerationStates()
+        {
+            _moderationStates.Clear();
+        }
+
+        private int GetWarnCountFromDatabase(string steamId)
+        {
+            if (_dbConnection == null) return 0;
+
+            try
+            {
+                using var command = _dbConnection.CreateCommand();
+                command.CommandText = "SELECT warn_count FROM sentinel_warnings WHERE target_id = @targetId;";
+                command.Parameters.AddWithValue("@targetId", steamId);
+                var result = command.ExecuteScalar();
+                if (result != null && result != DBNull.Value)
+                {
+                    return Convert.ToInt32(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _runtimeBridge?.LogError($"[Sentinel] GetWarnCount failed: {ex.Message}");
+            }
+            return 0;
         }
 
         public PlayerInfo? FindOnlinePlayer(string steamIdOrName)

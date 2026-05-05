@@ -118,21 +118,21 @@ namespace Sentinel.Tests
         }
 
         [Fact]
-        public void Reload_PreservesRowCounts_InAllSixTables()
+        public void Reload_PreservesRowCounts_InAllSevenTables()
         {
             var plugin = new TestableSentinel();
             plugin.InitializeDatabase(_dbPath);
             SeedAllTables(_dbPath);
 
             var preReloadCounts = GetRowCounts(_dbPath);
-            Assert.Equal(6, preReloadCounts.Count);
+            Assert.Equal(7, preReloadCounts.Count);
 
             // Simulate reload: close and re-initialize
             plugin.CloseDatabase();
             plugin.InitializeDatabase(_dbPath);
 
             var postReloadCounts = GetRowCounts(_dbPath);
-            Assert.Equal(6, postReloadCounts.Count);
+            Assert.Equal(7, postReloadCounts.Count);
 
             foreach (var table in preReloadCounts.Keys)
             {
@@ -234,6 +234,13 @@ namespace Sentinel.Tests
                                     VALUES ('76561190000000004', 'headshot_ratio', 0.5, 0.1, 100, 1234567890);";
                 cmd.ExecuteNonQuery();
             }
+
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = @"INSERT INTO sentinel_warnings (target_id, target_name, warn_count, last_reason, last_warned_at, created_at)
+                                    VALUES ('76561190000000005', 'WarnedPlayer', 2, 'spam', 1234567890, 1234567890);";
+                cmd.ExecuteNonQuery();
+            }
         }
 
         private static Dictionary<string, long> GetRowCounts(string dbPath)
@@ -241,7 +248,7 @@ namespace Sentinel.Tests
             using var connection = new SqliteConnection($"Data Source={dbPath}");
             connection.Open();
 
-            var tables = new[] { "sentinel_actions", "sentinel_bans", "sentinel_groups", "sentinel_group_members", "sentinel_ai_log", "sentinel_baselines" };
+            var tables = new[] { "sentinel_actions", "sentinel_bans", "sentinel_groups", "sentinel_group_members", "sentinel_ai_log", "sentinel_baselines", "sentinel_warnings" };
             var counts = new Dictionary<string, long>();
 
             foreach (var table in tables)

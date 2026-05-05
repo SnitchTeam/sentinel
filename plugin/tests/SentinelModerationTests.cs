@@ -667,5 +667,144 @@ namespace Sentinel.Tests
             Assert.True(_plugin.ExecuteMute(admin, "Target", "chat", null, out _));
             Assert.True(_plugin.ExecuteFreeze(admin, "Target", out _));
         }
+
+        // ---------------------------------------------------------
+        // Warn Persistence Tests
+        // ---------------------------------------------------------
+        private WarningRow? GetWarningRow(string targetId)
+        {
+            using var connection = new SqliteConnection($"Data Source={_dbPath}");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT target_id, target_name, warn_count, last_reason, last_warned_at, created_at FROM sentinel_warnings WHERE target_id = @targetId;";
+            command.Parameters.AddWithValue("@targetId", targetId);
+            using var reader = command.ExecuteReader();
+            if (!reader.Read()) return null;
+            return new WarningRow
+            {
+                TargetId = reader.GetString(0),
+                TargetName = reader.IsDBNull(1) ? null : reader.GetString(1),
+                WarnCount = reader.GetInt32(2),
+                LastReason = reader.IsDBNull(3) ? null : reader.GetString(3),
+                LastWarnedAt = reader.GetInt64(4),
+                CreatedAt = reader.GetInt64(5)
+            };
+        }
+
+        private class WarningRow
+        {
+            public string TargetId { get; set; } = "";
+            public string? TargetName { get; set; }
+            public int WarnCount { get; set; }
+            public string? LastReason { get; set; }
+            public long LastWarnedAt { get; set; }
+            public long CreatedAt { get; set; }
+        }
+
+        [Fact]
+        public void Warn_Persistence_TableExists()
+        {
+            using var connection = new SqliteConnection($"Data Source={_dbPath}");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name = 'sentinel_warnings';";
+            var result = command.ExecuteScalar();
+            Assert.NotNull(result);
+            Assert.Equal("sentinel_warnings", result);
+        }
+
+        [Fact]
+        public void Warn_Persistence_InsertsNewRow()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.warn");
+
+            _plugin.ExecuteWarn(admin, "Target", "First warning", out _);
+
+            var row = GetWarningRow(target.UserIDString);
+            Assert.NotNull(row);
+            Assert.Equal(1, row!.WarnCount);
+            Assert.Equal("First warning", row.LastReason);
+            Assert.Equal(target.UserIDString, row.TargetId);
+            Assert.Equal("Target", row.TargetName);
+        }
+
+        [Fact]
+        public void Warn_Persistence_IncrementsExistingRow()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.warn");
+
+            _plugin.ExecuteWarn(admin, "Target", "First warning", out _);
+            _plugin.ExecuteWarn(admin, "Target", "Second warning", out _);
+
+            var row = GetWarningRow(target.UserIDString);
+            Assert.NotNull(row);
+            Assert.Equal(2, row!.WarnCount);
+            Assert.Equal("Second warning", row.LastReason);
+        }
+
+        [Fact]
+        public void Warn_Persistence_SurvivesDatabaseReload()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.warn");
+
+            _plugin.ExecuteWarn(admin, "Target", "Persistent warning", out _);
+            _plugin.ExecuteWarn(admin, "Target", "Another warning", out _);
+
+            // Simulate plugin reload / server restart
+            _plugin.CloseDatabase();
+            _plugin.InitializeDatabase(_dbPath);
+            // Clear in-memory state to simulate fresh plugin instance
+            _plugin.ClearModerationStates();
+
+            var row = GetWarningRow(target.UserIDString);
+            Assert.NotNull(row);
+            Assert.Equal(2, row!.WarnCount);
+
+            // GetOrCreateModerationState should reflect persisted count
+            var state = _plugin.GetOrCreateModerationState(target.UserIDString);
+            Assert.Equal(2, state.WarnCount);
+        }
+
+        [Fact]
+        public void Warn_Persistence_AuditLogStillRecords()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.warn");
+
+            _plugin.ExecuteWarn(admin, "Target", "Audit test", out _);
+
+            var auditRows = GetAuditRows("warn");
+            Assert.Single(auditRows);
+            Assert.True(auditRows[0].Success);
+
+            var warningRow = GetWarningRow(target.UserIDString);
+            Assert.NotNull(warningRow);
+            Assert.Equal(1, warningRow!.WarnCount);
+        }
+
+        [Fact]
+        public void Warn_Persistence_LoadsIntoModerationState()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.warn");
+
+            _plugin.ExecuteWarn(admin, "Target", "State test", out _);
+            _plugin.ExecuteWarn(admin, "Target", "State test 2", out _);
+            _plugin.ExecuteWarn(admin, "Target", "State test 3", out _);
+
+            // Clear in-memory state
+            _plugin.ClearModerationStates();
+
+            var state = _plugin.GetOrCreateModerationState(target.UserIDString);
+            Assert.Equal(3, state.WarnCount);
+        }
     }
 }
