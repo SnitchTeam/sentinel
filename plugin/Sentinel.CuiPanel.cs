@@ -91,6 +91,35 @@ namespace Oxide.Plugins
             }
         }
 
+        public void SwitchView(BasePlayer player, string viewName)
+        {
+            if (player == null) return;
+            if (!HasPermission(player, "sentinel.panel")) return;
+
+            ClosePanel(player);
+
+            var steamId = player.UserIDString;
+            CuiElementContainer container = viewName.ToLowerInvariant() switch
+            {
+                "dashboard" => BuildDashboardView(steamId),
+                "players" => BuildPlayersView(steamId),
+                "logs" => BuildLogsView(steamId),
+                "bans" => BuildBansView(steamId),
+                "config" => BuildConfigView(steamId),
+                "ai" => BuildAiView(steamId),
+                "permissions" => BuildPermissionsView(steamId),
+                _ => BuildDashboardView(steamId)
+            };
+
+            var rootName = container[0].Name;
+            CuiHelper.AddUi(player, container);
+
+            _playerPanelOpen[steamId] = true;
+            _playerPanelRootNames[steamId] = rootName;
+
+            _runtimeBridge?.LogInfo($"[Sentinel] Switched {steamId} to {viewName} view");
+        }
+
         // -------------------------------------------------------------
         // Hotkey Handling
         // -------------------------------------------------------------
@@ -221,6 +250,26 @@ namespace Oxide.Plugins
             }
 
             ReloadPanel(player);
+        }
+
+        [ConsoleCommand("sentinel.view")]
+        void CCmdSwitchView(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null)
+            {
+                Puts("[Sentinel] This command requires an in-game player.");
+                return;
+            }
+
+            if (!HasPermission(player, "sentinel.panel"))
+            {
+                NotifyNoPermission(player);
+                return;
+            }
+
+            var viewName = arg.Args != null && arg.Args.Length > 0 ? arg.Args[0] : "dashboard";
+            SwitchView(player, viewName);
         }
     }
 }

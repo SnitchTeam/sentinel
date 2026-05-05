@@ -577,5 +577,353 @@ namespace Sentinel.Tests
             Assert.Equal("K", config.Cui.Hotkey);
             Assert.True(config.Cui.HotkeyEnabled);
         }
+
+        // -------------------------------------------------------------
+        // View Content Validation
+        // -------------------------------------------------------------
+
+        [Fact]
+        public void Dashboard_ContainsThreatCount()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildDashboardView(_pid));
+            Assert.Contains("Threats", json);
+        }
+
+        [Fact]
+        public void Dashboard_ContainsStatusIndicator()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildDashboardView(_pid));
+            Assert.Contains("Status", json);
+            Assert.Contains("Online", json);
+        }
+
+        [Fact]
+        public void Dashboard_ContainsRecentAlerts()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildDashboardView(_pid));
+            Assert.Contains("Alert 1", json);
+            Assert.Contains("Alert 2", json);
+            Assert.Contains("HIGH", json);
+            Assert.Contains("MED", json);
+        }
+
+        [Fact]
+        public void Dashboard_ContainsQuickActionButtons()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildDashboardView(_pid));
+            Assert.Contains("SCAN", json);
+            Assert.Contains("PLAYERS", json);
+            Assert.Contains("BANS", json);
+            Assert.Contains("sentinel.scan", json);
+            Assert.Contains("sentinel.view players", json);
+            Assert.Contains("sentinel.view bans", json);
+        }
+
+        [Fact]
+        public void Players_ContainsSearchInput()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildPlayersView(_pid));
+            Assert.Contains("Search", json);
+            Assert.Contains("sentinel.search", json);
+            Assert.Contains("UnityEngine.UI.InputField", json);
+        }
+
+        [Fact]
+        public void Players_ContainsPlayerRowWithAllActions()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildPlayersView(_pid));
+            Assert.Contains("Player0", json);
+            Assert.Contains("sentinel.warn 0", json);
+            Assert.Contains("sentinel.kick 0", json);
+            Assert.Contains("sentinel.ban 0", json);
+            Assert.Contains("sentinel.inspect 0", json);
+        }
+
+        [Fact]
+        public void Players_RowActions_WithinPanelBounds()
+        {
+            var plugin = new TestableSentinel();
+            var container = plugin.BuildPlayersView(_pid);
+            // Ensure all anchors are within 0-1 range
+            foreach (var el in container)
+            {
+                foreach (var comp in el.Components)
+                {
+                    if (comp is CuiRectTransformComponent rt)
+                    {
+                        var mins = rt.AnchorMin.Split(' ');
+                        var maxs = rt.AnchorMax.Split(' ');
+                        Assert.True(float.Parse(mins[0], System.Globalization.CultureInfo.InvariantCulture) >= 0 && float.Parse(maxs[0], System.Globalization.CultureInfo.InvariantCulture) <= 1, "X anchors out of bounds");
+                        Assert.True(float.Parse(mins[1], System.Globalization.CultureInfo.InvariantCulture) >= 0 && float.Parse(maxs[1], System.Globalization.CultureInfo.InvariantCulture) <= 1, "Y anchors out of bounds");
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void Logs_ContainsTimestampedEntries()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildLogsView(_pid));
+            Assert.Contains("05-06", json);
+            Assert.Contains("Log entry 1", json);
+            Assert.Contains("Log entry 2", json);
+        }
+
+        [Fact]
+        public void Logs_ContainsSeverityBadges()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildLogsView(_pid));
+            Assert.Contains("[ERR]", json);
+            Assert.Contains("[WARN]", json);
+        }
+
+        [Fact]
+        public void Logs_ContainsFilterControls()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildLogsView(_pid));
+            Assert.Contains("sentinel.logseverity", json);
+            Assert.Contains("ALL", json);
+            Assert.Contains("ERR", json);
+        }
+
+        [Fact]
+        public void Logs_ContainsPagination()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildLogsView(_pid));
+            Assert.Contains("PREV", json);
+            Assert.Contains("NEXT", json);
+            Assert.Contains("sentinel.logpage prev", json);
+            Assert.Contains("sentinel.logpage next", json);
+            Assert.Contains("1 / 5", json);
+        }
+
+        [Fact]
+        public void Bans_ContainsBanListWithNamesReasonsExpiry()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildBansView(_pid));
+            Assert.Contains("Player0", json);
+            Assert.Contains("Player1", json);
+            Assert.Contains("Cheating", json);
+            Assert.Contains("7d", json);
+        }
+
+        [Fact]
+        public void Bans_ContainsUnbanAction()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildBansView(_pid));
+            Assert.Contains("UNBAN", json);
+            Assert.Contains("sentinel.unban", json);
+        }
+
+        [Fact]
+        public void Bans_ContainsFilterAndSortControls()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildBansView(_pid));
+            Assert.Contains("sentinel.banfilter", json);
+            Assert.Contains("sentinel.bansort", json);
+            Assert.Contains("SORT", json);
+            Assert.Contains("UnityEngine.UI.InputField", json);
+        }
+
+        [Fact]
+        public void Config_ContainsCategorizedSettings()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildConfigView(_pid));
+            Assert.Contains("AuditLog", json);
+            Assert.Contains("Discord", json);
+        }
+
+        [Fact]
+        public void Config_ContainsToggleButtons()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildConfigView(_pid));
+            Assert.Contains("ON", json);
+            Assert.Contains("sentinel.togglecfg", json);
+        }
+
+        [Fact]
+        public void Config_ContainsNumericInput()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildConfigView(_pid));
+            Assert.Contains("Daily Cap", json);
+            Assert.Contains("sentinel.cfgnum", json);
+            Assert.Contains("UnityEngine.UI.InputField", json);
+        }
+
+        [Fact]
+        public void Config_ContainsSaveButton()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildConfigView(_pid));
+            Assert.Contains("SAVE", json);
+            Assert.Contains("sentinel.savecfg", json);
+        }
+
+        [Fact]
+        public void Ai_ContainsModelStatus()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildAiView(_pid));
+            Assert.Contains("Model:", json);
+            Assert.Contains("gpt-4o-mini", json);
+            Assert.Contains("Online", json);
+        }
+
+        [Fact]
+        public void Ai_ContainsConfidenceThreshold()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildAiView(_pid));
+            Assert.Contains("Threshold", json);
+            Assert.Contains("75%", json);
+        }
+
+        [Fact]
+        public void Ai_ContainsSuggestionQueueWithActions()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildAiView(_pid));
+            Assert.Contains("PlayerA", json);
+            Assert.Contains("aim", json);
+            Assert.Contains("85%", json);
+            Assert.Contains("ACCEPT", json);
+            Assert.Contains("REJECT", json);
+            Assert.Contains("EDIT", json);
+            Assert.Contains("sentinel.ai accept", json);
+            Assert.Contains("sentinel.ai reject", json);
+            Assert.Contains("sentinel.ai edit", json);
+        }
+
+        [Fact]
+        public void Ai_ContainsResponseHistory()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildAiView(_pid));
+            Assert.Contains("HISTORY", json);
+            Assert.Contains("Triage result", json);
+        }
+
+        [Fact]
+        public void Permissions_ContainsRoleList()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildPermissionsView(_pid));
+            Assert.Contains("admin", json);
+            Assert.Contains("moderator", json);
+        }
+
+        [Fact]
+        public void Permissions_ContainsPermissionMatrix()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildPermissionsView(_pid));
+            Assert.Contains("sentinel.*", json);
+            Assert.Contains("kick,ban,warn", json);
+        }
+
+        [Fact]
+        public void Permissions_ContainsAddRemoveControls()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildPermissionsView(_pid));
+            Assert.Contains("sentinel.perm add", json);
+            Assert.Contains("sentinel.perm remove", json);
+            Assert.Contains("UnityEngine.UI.Button", json);
+        }
+
+        // -------------------------------------------------------------
+        // View Switching
+        // -------------------------------------------------------------
+
+        [Theory]
+        [InlineData("dashboard")]
+        [InlineData("players")]
+        [InlineData("logs")]
+        [InlineData("bans")]
+        [InlineData("config")]
+        [InlineData("ai")]
+        [InlineData("permissions")]
+        public void SwitchView_OpensRequestedView(string viewName)
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            plugin.SwitchView(player, viewName);
+
+            Assert.True(plugin.IsPanelOpen("76561198000000001"));
+            var root = plugin.GetPanelRootName("76561198000000001");
+            Assert.NotNull(root);
+            Assert.StartsWith("s_", root);
+        }
+
+        [Fact]
+        public void SwitchView_WithoutPermission_DoesNotOpen()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            plugin.SwitchView(player, "players");
+
+            Assert.False(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void ConsoleViewCommand_SwitchesToPlayers()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("CCmdSwitchView");
+            Assert.NotNull(method);
+
+            var arg = BuildArg(new[] { "players" }, player);
+            method!.Invoke(plugin, new object[] { arg });
+
+            Assert.True(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void ConsoleViewCommand_InvalidView_FallsBackToDashboard()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("CCmdSwitchView");
+            Assert.NotNull(method);
+
+            var arg = BuildArg(new[] { "unknown" }, player);
+            method!.Invoke(plugin, new object[] { arg });
+
+            Assert.True(plugin.IsPanelOpen("76561198000000001"));
+            var root = plugin.GetPanelRootName("76561198000000001");
+            Assert.Contains("s_d_", root);
+        }
     }
 }
