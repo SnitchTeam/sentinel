@@ -60,9 +60,60 @@ namespace Oxide.Core.Plugins
     }
 }
 
+namespace Oxide.Core.Libraries
+{
+    public class Permission
+    {
+        public virtual bool UserHasPermission(string id, string perm) => false;
+        public virtual void RegisterPermission(string perm, Oxide.Plugins.RustPlugin owner) { }
+    }
+}
+
+namespace Oxide.Core
+{
+    public class ConsoleSystem
+    {
+        public class Arg
+        {
+            public string[] Args { get; set; } = System.Array.Empty<string>();
+            public Oxide.Plugins.BasePlayer? Player() => null;
+        }
+    }
+}
+
 namespace Oxide.Plugins
 {
     using Oxide.Core.Plugins;
+
+    [System.AttributeUsage(System.AttributeTargets.Method, Inherited = false)]
+    public class ChatCommandAttribute : System.Attribute
+    {
+        public string Name { get; }
+        public ChatCommandAttribute(string name) => Name = name;
+    }
+
+    [System.AttributeUsage(System.AttributeTargets.Method, Inherited = false)]
+    public class ConsoleCommandAttribute : System.Attribute
+    {
+        public string Name { get; }
+        public ConsoleCommandAttribute(string name) => Name = name;
+    }
+
+    public class BasePlayer
+    {
+        public string UserIDString { get; set; } = "0";
+        public string displayName { get; set; } = "Unknown";
+        public string? Address { get; set; }
+        public virtual void Kick(string reason) { }
+        public virtual void ChatMessage(string message) { }
+
+        public static System.Collections.Generic.List<BasePlayer> activePlayerList { get; } = new();
+    }
+
+    public class AuthenticationTicketIdentity
+    {
+        public string Userid { get; set; } = "";
+    }
 
     public class RustPlugin
     {
@@ -71,6 +122,7 @@ namespace Oxide.Plugins
         public virtual void PrintError(string message) { }
 
         public DynamicConfigFile? Config { get; set; }
+        public Oxide.Core.Libraries.Permission? permission { get; set; }
 
         public virtual void LoadDefaultConfig() { }
     }

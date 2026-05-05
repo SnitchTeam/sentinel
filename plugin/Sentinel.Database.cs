@@ -29,6 +29,8 @@ namespace Oxide.Plugins
             CreateSchema();
         }
 
+        public SqliteConnection? GetDbConnection() => _dbConnection;
+
         public void CloseDatabase()
         {
             if (_dbConnection != null)
