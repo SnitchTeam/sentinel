@@ -686,6 +686,9 @@ namespace Oxide.Plugins
 
         private void CCmdGroupCreate(ConsoleSystem.Arg arg, BasePlayer? admin)
         {
+            var actorId = admin?.UserIDString ?? "console";
+            var actorName = admin?.displayName ?? "Console";
+
             if (arg.Args == null || arg.Args.Length < 3)
             {
                 Puts("Usage: sentinel.group create <name> \"<title>\" [parent]");
@@ -694,6 +697,7 @@ namespace Oxide.Plugins
 
             if (!HasPermission(admin, "sentinel.groups.manage"))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_create", null, null, false);
                 Puts("[Sentinel] You don't have permission to manage groups.");
                 return;
             }
@@ -704,16 +708,23 @@ namespace Oxide.Plugins
 
             if (CreateGroup(name, title, parent, out var error))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_create", $"Created group '{name}'", null, true,
+                    $"{{\"group\":\"{name}\",\"title\":\"{title}\",\"parent\":\"{parent ?? "null"}\"}}");
                 Puts($"[Sentinel] Created group '{name}' with title '{title}'.");
             }
             else
             {
+                LogAuditAction(actorId, actorName, null, null, "group_create", null, null, false,
+                    $"{{\"group\":\"{name}\",\"error\":\"{error}\"}}");
                 Puts($"[Sentinel] Failed to create group: {error}");
             }
         }
 
         private void CCmdGroupDelete(ConsoleSystem.Arg arg, BasePlayer? admin)
         {
+            var actorId = admin?.UserIDString ?? "console";
+            var actorName = admin?.displayName ?? "Console";
+
             if (arg.Args == null || arg.Args.Length < 2)
             {
                 Puts("Usage: sentinel.group delete <name>");
@@ -722,24 +733,34 @@ namespace Oxide.Plugins
 
             if (!HasPermission(admin, "sentinel.groups.manage"))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_delete", null, null, false);
                 Puts("[Sentinel] You don't have permission to manage groups.");
                 return;
             }
 
             var name = arg.Args[1];
+            var group = GetGroupFromDb(name);
+            var oldTitle = group?.Title;
 
             if (DeleteGroup(name, out var error))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_delete", $"Deleted group '{name}'", null, true,
+                    $"{{\"group\":\"{name}\",\"oldTitle\":\"{oldTitle ?? "null"}\"}}");
                 Puts($"[Sentinel] Deleted group '{name}'.");
             }
             else
             {
+                LogAuditAction(actorId, actorName, null, null, "group_delete", null, null, false,
+                    $"{{\"group\":\"{name}\",\"error\":\"{error}\"}}");
                 Puts($"[Sentinel] Failed to delete group: {error}");
             }
         }
 
         private void CCmdGroupUpdate(ConsoleSystem.Arg arg, BasePlayer? admin)
         {
+            var actorId = admin?.UserIDString ?? "console";
+            var actorName = admin?.displayName ?? "Console";
+
             if (arg.Args == null || arg.Args.Length < 4)
             {
                 Puts("Usage: sentinel.group update <name> title \"<newTitle>\"");
@@ -749,6 +770,7 @@ namespace Oxide.Plugins
 
             if (!HasPermission(admin, "sentinel.groups.manage"))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_update", null, null, false);
                 Puts("[Sentinel] You don't have permission to manage groups.");
                 return;
             }
@@ -756,15 +778,22 @@ namespace Oxide.Plugins
             var name = arg.Args[1];
             var field = arg.Args[2].ToLowerInvariant();
             var value = arg.Args[3];
+            var group = GetGroupFromDb(name);
+            var oldTitle = group?.Title;
+            var oldParent = group?.ParentGroup;
 
             if (field == "title")
             {
                 if (UpdateGroupTitle(name, value, out var error))
                 {
+                    LogAuditAction(actorId, actorName, null, null, "group_update", $"Updated title for '{name}'", null, true,
+                        $"{{\"group\":\"{name}\",\"field\":\"title\",\"old\":\"{oldTitle ?? "null"}\",\"new\":\"{value}\"}}");
                     Puts($"[Sentinel] Updated group '{name}' title to '{value}'.");
                 }
                 else
                 {
+                    LogAuditAction(actorId, actorName, null, null, "group_update", null, null, false,
+                        $"{{\"group\":\"{name}\",\"field\":\"title\",\"error\":\"{error}\"}}");
                     Puts($"[Sentinel] Failed to update group: {error}");
                 }
             }
@@ -773,10 +802,14 @@ namespace Oxide.Plugins
                 var parent = value.Equals("none", StringComparison.OrdinalIgnoreCase) ? null : value;
                 if (UpdateGroupParent(name, parent, out var error))
                 {
+                    LogAuditAction(actorId, actorName, null, null, "group_update", $"Updated parent for '{name}'", null, true,
+                        $"{{\"group\":\"{name}\",\"field\":\"parent\",\"old\":\"{oldParent ?? "null"}\",\"new\":\"{parent ?? "null"}\"}}");
                     Puts($"[Sentinel] Updated group '{name}' parent to '{parent ?? "none"}'.");
                 }
                 else
                 {
+                    LogAuditAction(actorId, actorName, null, null, "group_update", null, null, false,
+                        $"{{\"group\":\"{name}\",\"field\":\"parent\",\"error\":\"{error}\"}}");
                     Puts($"[Sentinel] Failed to update group: {error}");
                 }
             }
@@ -788,6 +821,9 @@ namespace Oxide.Plugins
 
         private void CCmdGroupAdd(ConsoleSystem.Arg arg, BasePlayer? admin)
         {
+            var actorId = admin?.UserIDString ?? "console";
+            var actorName = admin?.displayName ?? "Console";
+
             if (arg.Args == null || arg.Args.Length < 3)
             {
                 Puts("Usage: sentinel.group add <group> <player>");
@@ -796,25 +832,35 @@ namespace Oxide.Plugins
 
             if (!HasPermission(admin, "sentinel.groups.manage"))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_add_user", null, null, false);
                 Puts("[Sentinel] You don't have permission to manage groups.");
                 return;
             }
 
             var groupName = arg.Args[1];
             var playerId = arg.Args[2];
+            var target = ResolveTarget(playerId);
+            var targetSteamId = target?.UserIDString ?? playerId;
 
             if (AddUserToGroup(groupName, playerId, out var error))
             {
+                LogAuditAction(actorId, actorName, targetSteamId, target?.displayName, "group_add_user", $"Added to '{groupName}'", null, true,
+                    $"{{\"group\":\"{groupName}\",\"player\":\"{targetSteamId}\"}}");
                 Puts($"[Sentinel] Added '{playerId}' to group '{groupName}'.");
             }
             else
             {
+                LogAuditAction(actorId, actorName, targetSteamId, target?.displayName, "group_add_user", null, null, false,
+                    $"{{\"group\":\"{groupName}\",\"player\":\"{targetSteamId}\",\"error\":\"{error}\"}}");
                 Puts($"[Sentinel] Failed to add user to group: {error}");
             }
         }
 
         private void CCmdGroupRemove(ConsoleSystem.Arg arg, BasePlayer? admin)
         {
+            var actorId = admin?.UserIDString ?? "console";
+            var actorName = admin?.displayName ?? "Console";
+
             if (arg.Args == null || arg.Args.Length < 3)
             {
                 Puts("Usage: sentinel.group remove <group> <player>");
@@ -823,25 +869,35 @@ namespace Oxide.Plugins
 
             if (!HasPermission(admin, "sentinel.groups.manage"))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_remove_user", null, null, false);
                 Puts("[Sentinel] You don't have permission to manage groups.");
                 return;
             }
 
             var groupName = arg.Args[1];
             var playerId = arg.Args[2];
+            var target = ResolveTarget(playerId);
+            var targetSteamId = target?.UserIDString ?? playerId;
 
             if (RemoveUserFromGroup(groupName, playerId, out var error))
             {
+                LogAuditAction(actorId, actorName, targetSteamId, target?.displayName, "group_remove_user", $"Removed from '{groupName}'", null, true,
+                    $"{{\"group\":\"{groupName}\",\"player\":\"{targetSteamId}\"}}");
                 Puts($"[Sentinel] Removed '{playerId}' from group '{groupName}'.");
             }
             else
             {
+                LogAuditAction(actorId, actorName, targetSteamId, target?.displayName, "group_remove_user", null, null, false,
+                    $"{{\"group\":\"{groupName}\",\"player\":\"{targetSteamId}\",\"error\":\"{error}\"}}");
                 Puts($"[Sentinel] Failed to remove user from group: {error}");
             }
         }
 
         private void CCmdGroupGrant(ConsoleSystem.Arg arg, BasePlayer? admin)
         {
+            var actorId = admin?.UserIDString ?? "console";
+            var actorName = admin?.displayName ?? "Console";
+
             if (arg.Args == null || arg.Args.Length < 3)
             {
                 Puts("Usage: sentinel.group grant <group> <permission>");
@@ -850,6 +906,7 @@ namespace Oxide.Plugins
 
             if (!HasPermission(admin, "sentinel.groups.manage"))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_grant_permission", null, null, false);
                 Puts("[Sentinel] You don't have permission to manage groups.");
                 return;
             }
@@ -859,16 +916,23 @@ namespace Oxide.Plugins
 
             if (GrantGroupPermission(groupName, perm, out var error))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_grant_permission", $"Granted '{perm}' to '{groupName}'", null, true,
+                    $"{{\"group\":\"{groupName}\",\"permission\":\"{perm}\"}}");
                 Puts($"[Sentinel] Granted '{perm}' to group '{groupName}'.");
             }
             else
             {
+                LogAuditAction(actorId, actorName, null, null, "group_grant_permission", null, null, false,
+                    $"{{\"group\":\"{groupName}\",\"permission\":\"{perm}\",\"error\":\"{error}\"}}");
                 Puts($"[Sentinel] Failed to grant permission: {error}");
             }
         }
 
         private void CCmdGroupRevoke(ConsoleSystem.Arg arg, BasePlayer? admin)
         {
+            var actorId = admin?.UserIDString ?? "console";
+            var actorName = admin?.displayName ?? "Console";
+
             if (arg.Args == null || arg.Args.Length < 3)
             {
                 Puts("Usage: sentinel.group revoke <group> <permission>");
@@ -877,19 +941,26 @@ namespace Oxide.Plugins
 
             if (!HasPermission(admin, "sentinel.groups.manage"))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_revoke_permission", null, null, false);
                 Puts("[Sentinel] You don't have permission to manage groups.");
                 return;
             }
 
             var groupName = arg.Args[1];
             var perm = arg.Args[2];
+            var group = GetGroupFromDb(groupName);
+            var hadPerm = group?.Permissions.Contains(perm, StringComparer.OrdinalIgnoreCase) ?? false;
 
             if (RevokeGroupPermission(groupName, perm, out var error))
             {
+                LogAuditAction(actorId, actorName, null, null, "group_revoke_permission", $"Revoked '{perm}' from '{groupName}'", null, true,
+                    $"{{\"group\":\"{groupName}\",\"permission\":\"{perm}\",\"hadPermission\":{hadPerm.ToString().ToLower()}}}");
                 Puts($"[Sentinel] Revoked '{perm}' from group '{groupName}'.");
             }
             else
             {
+                LogAuditAction(actorId, actorName, null, null, "group_revoke_permission", null, null, false,
+                    $"{{\"group\":\"{groupName}\",\"permission\":\"{perm}\",\"error\":\"{error}\"}}");
                 Puts($"[Sentinel] Failed to revoke permission: {error}");
             }
         }

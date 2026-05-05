@@ -72,6 +72,8 @@ namespace Oxide.Plugins
                     target_steam_id TEXT,
                     target_name TEXT,
                     action_type TEXT NOT NULL,
+                    reason TEXT,
+                    duration_minutes INTEGER,
                     details_json TEXT,
                     timestamp INTEGER NOT NULL,
                     success INTEGER NOT NULL DEFAULT 1
@@ -142,6 +144,7 @@ namespace Oxide.Plugins
             {
                 "CREATE INDEX IF NOT EXISTS idx_actions_timestamp ON sentinel_actions(timestamp);",
                 "CREATE INDEX IF NOT EXISTS idx_actions_actor ON sentinel_actions(actor_steam_id);",
+                "CREATE INDEX IF NOT EXISTS idx_actions_target ON sentinel_actions(target_steam_id);",
                 "CREATE INDEX IF NOT EXISTS idx_bans_steam_id ON sentinel_bans(steam_id);",
                 "CREATE INDEX IF NOT EXISTS idx_bans_active ON sentinel_bans(active);",
                 "CREATE INDEX IF NOT EXISTS idx_group_members_group ON sentinel_group_members(group_id);",
@@ -164,6 +167,35 @@ namespace Oxide.Plugins
                 {
                     using var command = _dbConnection!.CreateCommand();
                     command.CommandText = "ALTER TABLE sentinel_groups ADD COLUMN system_protected INTEGER NOT NULL DEFAULT 0;";
+                    command.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    _runtimeBridge?.LogWarning($"[Sentinel] Migration warning: {ex.Message}");
+                }
+            }
+
+            // Migrate: add duration_minutes and reason columns to sentinel_actions
+            if (!ColumnExists("sentinel_actions", "duration_minutes"))
+            {
+                try
+                {
+                    using var command = _dbConnection!.CreateCommand();
+                    command.CommandText = "ALTER TABLE sentinel_actions ADD COLUMN duration_minutes INTEGER;";
+                    command.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    _runtimeBridge?.LogWarning($"[Sentinel] Migration warning: {ex.Message}");
+                }
+            }
+
+            if (!ColumnExists("sentinel_actions", "reason"))
+            {
+                try
+                {
+                    using var command = _dbConnection!.CreateCommand();
+                    command.CommandText = "ALTER TABLE sentinel_actions ADD COLUMN reason TEXT;";
                     command.ExecuteNonQuery();
                 }
                 catch (Exception ex)
