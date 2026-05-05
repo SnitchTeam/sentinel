@@ -30,8 +30,8 @@ namespace Oxide.Plugins
 {
     public class RustPlugin
     {
-        public void Puts(string message) { }
-        public void PrintWarning(string message) { }
-        public void PrintError(string message) { }
+        public virtual void Puts(string message) { }
+        public virtual void PrintWarning(string message) { }
+        public virtual void PrintError(string message) { }
     }
 }

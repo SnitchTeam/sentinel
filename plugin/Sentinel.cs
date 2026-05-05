@@ -8,8 +8,9 @@ namespace Oxide.Plugins
     {
         private void Init()
         {
-            Puts("Sentinel initialized.");
+            InitializeRuntimeBridge();
             InitializeDatabase(GetDatabasePath());
+            _runtimeBridge?.LogInfo("[Sentinel] Sentinel initialized.");
         }
 
         private void Unload()
