@@ -23,6 +23,24 @@ namespace Oxide.Plugins
             CloseDatabase();
         }
 
+        public override void Puts(string message)
+        {
+            CaptureConsoleLine(message, "INFO");
+            base.Puts(message);
+        }
+
+        public override void PrintWarning(string message)
+        {
+            CaptureConsoleLine(message, "WARN");
+            base.PrintWarning(message);
+        }
+
+        public override void PrintError(string message)
+        {
+            CaptureConsoleLine(message, "ERROR");
+            base.PrintError(message);
+        }
+
         public void EmitBootBanner()
         {
             var attr = typeof(Sentinel).GetCustomAttribute<InfoAttribute>();
