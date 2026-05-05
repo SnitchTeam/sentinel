@@ -1,0 +1,12 @@
+{
+  "name": "sentinel-web-panel",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'No dev server yet' && exit 0",
+    "build": "echo 'No build yet' && exit 0",
+    "test": "echo 'No tests yet' && exit 0",
+    "lint": "echo 'No lint yet' && exit 0",
+    "typecheck": "echo 'No typecheck yet' && exit 0"
+  }
+}

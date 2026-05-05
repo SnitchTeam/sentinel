@@ -1,0 +1,11 @@
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/obj/Debug/net8.0/Sentinel.GeneratedMSBuildEditorConfig.editorconfig
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/obj/Debug/net8.0/Sentinel.AssemblyInfoInputs.cache
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/obj/Debug/net8.0/Sentinel.AssemblyInfo.cs
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/obj/Debug/net8.0/Sentinel.csproj.CoreCompileInputs.cache
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/bin/Debug/net8.0/Sentinel.deps.json
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/bin/Debug/net8.0/Sentinel.dll
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/bin/Debug/net8.0/Sentinel.pdb
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/obj/Debug/net8.0/Sentinel.dll
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/obj/Debug/net8.0/refint/Sentinel.dll
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/obj/Debug/net8.0/Sentinel.pdb
+/Users/boudoir/Documents/Snitch Team/RUST/Rust/plugin/obj/Debug/net8.0/ref/Sentinel.dll
