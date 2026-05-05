@@ -15,6 +15,8 @@ namespace Oxide.Plugins
 
         public void InitializeDatabase(string dbPath)
         {
+            CloseDatabase();
+
             var directory = Path.GetDirectoryName(dbPath);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {

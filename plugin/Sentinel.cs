@@ -1,3 +1,4 @@
+using System.Reflection;
 using Oxide.Core.Plugins;
 
 namespace Oxide.Plugins
@@ -11,12 +12,24 @@ namespace Oxide.Plugins
             LoadPluginConfig();
             InitializeRuntimeBridge();
             InitializeDatabase(GetDatabasePath());
-            _runtimeBridge?.LogInfo("[Sentinel] Sentinel initialized.");
+            EmitBootBanner();
         }
 
         private void Unload()
         {
             CloseDatabase();
+        }
+
+        public void EmitBootBanner()
+        {
+            var attr = typeof(Sentinel).GetCustomAttribute<InfoAttribute>();
+            var version = attr?.Version ?? "unknown";
+            var runtime = _runtimeBridge?.Runtime.ToString() ?? "Unknown";
+            var dbStatus = (_dbConnection != null && _dbConnection.State == System.Data.ConnectionState.Open)
+                ? "Ready"
+                : "NotReady";
+
+            _runtimeBridge?.LogInfo($"[Sentinel] Boot — Sentinel v{version} | Runtime={runtime} | Database={dbStatus}");
         }
     }
 }
