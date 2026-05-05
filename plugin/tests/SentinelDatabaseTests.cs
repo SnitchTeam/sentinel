@@ -73,7 +73,7 @@ namespace Sentinel.Tests
         public void Schema_CreatesExactlySixTables()
         {
             var tables = GetTableNames();
-            Assert.Equal(6, tables.Count);
+            Assert.Equal(7, tables.Count);
         }
 
         [Fact]
@@ -172,7 +172,7 @@ namespace Sentinel.Tests
             _plugin.InitializeDatabase(_dbPath);
 
             var tables = GetTableNames();
-            Assert.Equal(6, tables.Count);
+            Assert.Equal(7, tables.Count);
         }
 
         [Fact]

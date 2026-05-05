@@ -172,6 +172,8 @@ namespace Oxide.Plugins
                 }
             }
 
+            CreateWorldStateSchema();
+
             Puts("[Sentinel] Database schema initialized.");
         }
     }

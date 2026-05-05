@@ -14,6 +14,7 @@ namespace Oxide.Plugins
             InitializeDatabase(GetDatabasePath());
             RegisterPermissions();
             InitializeDefaultGroups();
+            RestoreWorldState();
             EmitBootBanner();
         }
 

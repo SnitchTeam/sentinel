@@ -68,6 +68,11 @@ namespace Oxide.Plugins
         };
     }
 
+    public class WorldConfig
+    {
+        public bool PersistOverrides { get; set; } = true;
+    }
+
     public class SentinelConfig
     {
         public DatabaseConfig Database { get; set; } = new();
@@ -75,11 +80,12 @@ namespace Oxide.Plugins
         public AIConfig AI { get; set; } = new();
         public BansConfig Bans { get; set; } = new();
         public GroupsConfig Groups { get; set; } = new();
+        public WorldConfig World { get; set; } = new();
     }
 
     public partial class Sentinel
     {
-        public SentinelConfig? PluginConfig { get; private set; }
+        public SentinelConfig? PluginConfig { get; protected set; }
 
         public virtual string GetConfigPath()
         {
