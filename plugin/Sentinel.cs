@@ -9,6 +9,12 @@ namespace Oxide.Plugins
         private void Init()
         {
             Puts("Sentinel initialized.");
+            InitializeDatabase(GetDatabasePath());
+        }
+
+        private void Unload()
+        {
+            CloseDatabase();
         }
     }
 }
