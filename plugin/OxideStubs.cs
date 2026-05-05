@@ -217,4 +217,125 @@ namespace Oxide.Plugins
 
         public virtual void LoadDefaultConfig() { }
     }
+
+    // -------------------------------------------------------------
+    // CUI (Coherent UI) Stubs
+    // -------------------------------------------------------------
+    [System.Text.Json.Serialization.JsonConverter(typeof(CuiComponentConverter))]
+    public interface ICuiComponent { }
+
+    public class CuiRawImageComponent : ICuiComponent
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("color")] public string Color { get; set; } = "1 1 1 1";
+        [System.Text.Json.Serialization.JsonPropertyName("sprite")] public string Sprite { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("material")] public string Material { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("png")] public string Png { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("url")] public string Url { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("fadein")] public float? FadeIn { get; set; }
+    }
+
+    public class CuiTextComponent : ICuiComponent
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("text")] public string Text { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("fontsize")] public string FontSize { get; set; } = "12";
+        [System.Text.Json.Serialization.JsonPropertyName("font")] public string Font { get; set; } = "robotocondensed-regular.ttf";
+        [System.Text.Json.Serialization.JsonPropertyName("align")] public string Align { get; set; } = "UpperLeft";
+        [System.Text.Json.Serialization.JsonPropertyName("color")] public string Color { get; set; } = "1 1 1 1";
+        [System.Text.Json.Serialization.JsonPropertyName("fadein")] public float? FadeIn { get; set; }
+    }
+
+    public class CuiButtonComponent : ICuiComponent
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("color")] public string Color { get; set; } = "1 1 1 1";
+        [System.Text.Json.Serialization.JsonPropertyName("command")] public string Command { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("close")] public string Close { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("sprite")] public string Sprite { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("material")] public string Material { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("fadein")] public float? FadeIn { get; set; }
+    }
+
+    public class CuiInputFieldComponent : ICuiComponent
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("text")] public string Text { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("fontsize")] public string FontSize { get; set; } = "12";
+        [System.Text.Json.Serialization.JsonPropertyName("font")] public string Font { get; set; } = "robotocondensed-regular.ttf";
+        [System.Text.Json.Serialization.JsonPropertyName("align")] public string Align { get; set; } = "UpperLeft";
+        [System.Text.Json.Serialization.JsonPropertyName("color")] public string Color { get; set; } = "1 1 1 1";
+        [System.Text.Json.Serialization.JsonPropertyName("charslimit")] public int CharsLimit { get; set; } = 0;
+        [System.Text.Json.Serialization.JsonPropertyName("command")] public string Command { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("readonly")] public bool ReadOnly { get; set; } = false;
+        [System.Text.Json.Serialization.JsonPropertyName("password")] public bool Password { get; set; } = false;
+        [System.Text.Json.Serialization.JsonPropertyName("hudmenuinput")] public bool HudMenuInput { get; set; } = false;
+        [System.Text.Json.Serialization.JsonPropertyName("needskeyboard")] public bool NeedsKeyboard { get; set; } = false;
+        [System.Text.Json.Serialization.JsonPropertyName("linetype")] public string? LineType { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("placeholder")] public string? PlaceHolder { get; set; }
+    }
+
+    public class CuiRectTransformComponent : ICuiComponent
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("anchormin")] public string AnchorMin { get; set; } = "0 0";
+        [System.Text.Json.Serialization.JsonPropertyName("anchormax")] public string AnchorMax { get; set; } = "1 1";
+        [System.Text.Json.Serialization.JsonPropertyName("offsetmin")] public string OffsetMin { get; set; } = "0 0";
+        [System.Text.Json.Serialization.JsonPropertyName("offsetmax")] public string OffsetMax { get; set; } = "0 0";
+    }
+
+    public class CuiElement
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("name")] public string Name { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("parent")] public string Parent { get; set; } = "Hud";
+        [System.Text.Json.Serialization.JsonPropertyName("components")] public System.Collections.Generic.List<ICuiComponent> Components { get; set; } = new();
+        [System.Text.Json.Serialization.JsonPropertyName("fadeout")] public float? FadeOut { get; set; }
+    }
+
+    public class CuiElementContainer : System.Collections.Generic.List<CuiElement>
+    {
+        public new string Add(CuiElement element)
+        {
+            base.Add(element);
+            return element.Name;
+        }
+    }
+
+    public static class CuiHelper
+    {
+        private static readonly System.Text.Json.JsonSerializerOptions _options = new()
+        {
+            PropertyNamingPolicy = null,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
+        public static string ToJson(CuiElementContainer container) => System.Text.Json.JsonSerializer.Serialize(container, _options);
+        public static string GetGuid() => Guid.NewGuid().ToString("N")[..8];
+    }
+
+    public class CuiComponentConverter : System.Text.Json.Serialization.JsonConverter<ICuiComponent>
+    {
+        public override ICuiComponent Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+            => throw new System.NotSupportedException();
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, ICuiComponent value, System.Text.Json.JsonSerializerOptions options)
+        {
+            writer.WriteStartObject();
+            string typeName = value switch
+            {
+                CuiRawImageComponent => "UnityEngine.UI.RawImage",
+                CuiTextComponent => "UnityEngine.UI.Text",
+                CuiButtonComponent => "UnityEngine.UI.Button",
+                CuiInputFieldComponent => "UnityEngine.UI.InputField",
+                CuiRectTransformComponent => "RectTransform",
+                _ => value.GetType().Name
+            };
+            writer.WriteString("type", typeName);
+            foreach (var prop in value.GetType().GetProperties())
+            {
+                var propValue = prop.GetValue(value);
+                if (propValue == null) continue;
+                var jsonProp = prop.GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonPropertyNameAttribute), false);
+                string propName = jsonProp.Length > 0 ? ((System.Text.Json.Serialization.JsonPropertyNameAttribute)jsonProp[0]).Name : prop.Name.ToLowerInvariant();
+                writer.WritePropertyName(propName);
+                System.Text.Json.JsonSerializer.Serialize(writer, propValue, options);
+            }
+            writer.WriteEndObject();
+        }
+    }
 }
