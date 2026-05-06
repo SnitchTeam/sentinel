@@ -148,6 +148,20 @@ namespace Oxide.Plugins
                     category TEXT,
                     keywords TEXT,
                     created_at INTEGER NOT NULL
+                );",
+                @"CREATE TABLE IF NOT EXISTS sentinel_anticheat_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    steam_id TEXT NOT NULL,
+                    player_name TEXT,
+                    metric_name TEXT NOT NULL,
+                    observed_value REAL NOT NULL,
+                    baseline_mean REAL NOT NULL,
+                    baseline_std_dev REAL NOT NULL,
+                    z_score REAL NOT NULL,
+                    cheat_likelihood INTEGER NOT NULL,
+                    primary_indicators TEXT,
+                    is_heuristic INTEGER NOT NULL DEFAULT 0,
+                    timestamp INTEGER NOT NULL
                 );"
             };
 
@@ -171,7 +185,9 @@ namespace Oxide.Plugins
                 "CREATE INDEX IF NOT EXISTS idx_baselines_steam_metric ON sentinel_baselines(steam_id, metric_name);",
                 "CREATE INDEX IF NOT EXISTS idx_warnings_target_id ON sentinel_warnings(target_id);",
                 "CREATE INDEX IF NOT EXISTS idx_rules_rule_id ON sentinel_rules(rule_id);",
-                "CREATE INDEX IF NOT EXISTS idx_rules_category ON sentinel_rules(category);"
+                "CREATE INDEX IF NOT EXISTS idx_rules_category ON sentinel_rules(category);",
+                "CREATE INDEX IF NOT EXISTS idx_anticheat_steam ON sentinel_anticheat_events(steam_id);",
+                "CREATE INDEX IF NOT EXISTS idx_anticheat_timestamp ON sentinel_anticheat_events(timestamp);"
             };
 
             foreach (var sql in indexes)

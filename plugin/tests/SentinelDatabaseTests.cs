@@ -73,7 +73,7 @@ namespace Sentinel.Tests
         public void Schema_CreatesExpectedTableCount()
         {
             var tables = GetTableNames();
-            Assert.Equal(9, tables.Count);
+            Assert.Equal(10, tables.Count);
         }
 
         [Fact]
@@ -88,6 +88,7 @@ namespace Sentinel.Tests
             Assert.Contains("sentinel_baselines", tables);
             Assert.Contains("sentinel_warnings", tables);
             Assert.Contains("sentinel_rules", tables);
+            Assert.Contains("sentinel_anticheat_events", tables);
         }
 
         [Fact]
@@ -200,7 +201,25 @@ namespace Sentinel.Tests
             _plugin.InitializeDatabase(_dbPath);
 
             var tables = GetTableNames();
-            Assert.Equal(9, tables.Count);
+            Assert.Equal(10, tables.Count);
+        }
+
+        [Fact]
+        public void Schema_AntiCheatEventsTable_HasPrimaryKeyAndDomainColumns()
+        {
+            var columns = GetColumnNames("sentinel_anticheat_events");
+            Assert.Contains("id", columns);
+            Assert.Contains("steam_id", columns);
+            Assert.Contains("player_name", columns);
+            Assert.Contains("metric_name", columns);
+            Assert.Contains("observed_value", columns);
+            Assert.Contains("baseline_mean", columns);
+            Assert.Contains("baseline_std_dev", columns);
+            Assert.Contains("z_score", columns);
+            Assert.Contains("cheat_likelihood", columns);
+            Assert.Contains("primary_indicators", columns);
+            Assert.Contains("is_heuristic", columns);
+            Assert.Contains("timestamp", columns);
         }
 
         [Fact]
@@ -224,6 +243,8 @@ namespace Sentinel.Tests
             Assert.Contains("idx_warnings_target_id", indexes);
             Assert.Contains("idx_rules_rule_id", indexes);
             Assert.Contains("idx_rules_category", indexes);
+            Assert.Contains("idx_anticheat_steam", indexes);
+            Assert.Contains("idx_anticheat_timestamp", indexes);
         }
     }
 }
