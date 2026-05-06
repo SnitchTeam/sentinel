@@ -102,7 +102,7 @@ namespace Oxide.Plugins
             CuiElementContainer container = viewName.ToLowerInvariant() switch
             {
                 "dashboard" => BuildDashboardView(steamId),
-                "players" => BuildPlayersView(steamId),
+                "players" => BuildPlayersView(steamId, ""),
                 "logs" => BuildLogsView(steamId),
                 "bans" => BuildBansView(steamId),
                 "config" => BuildConfigView(steamId),
@@ -270,6 +270,42 @@ namespace Oxide.Plugins
 
             var viewName = arg.Args != null && arg.Args.Length > 0 ? arg.Args[0] : "dashboard";
             SwitchView(player, viewName);
+        }
+
+        [ConsoleCommand("sentinel.search")]
+        void CCmdPlayerSearch(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null)
+            {
+                Puts("[Sentinel] This command requires an in-game player.");
+                return;
+            }
+
+            if (!HasPermission(player, "sentinel.panel"))
+            {
+                NotifyNoPermission(player);
+                return;
+            }
+
+            var query = arg.Args != null && arg.Args.Length > 0 ? arg.Args[0] : "";
+            var steamId = player.UserIDString;
+
+            // Destroy existing panel if open
+            if (_playerPanelRootNames.TryGetValue(steamId, out var oldRoot))
+            {
+                CuiHelper.DestroyUi(player, oldRoot);
+            }
+
+            // Rebuild Players view with filtered results
+            var container = BuildPlayersView(steamId, query);
+            var rootName = container[0].Name;
+            CuiHelper.AddUi(player, container);
+
+            _playerPanelOpen[steamId] = true;
+            _playerPanelRootNames[steamId] = rootName;
+
+            _runtimeBridge?.LogInfo($"[Sentinel] Player search for {steamId}: '{query}'");
         }
     }
 }

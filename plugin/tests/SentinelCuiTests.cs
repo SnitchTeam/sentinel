@@ -636,13 +636,14 @@ namespace Sentinel.Tests
         [Fact]
         public void Players_ContainsPlayerRowWithAllActions()
         {
-            var plugin = new TestableSentinel();
+            var plugin = new PlayerCuiTestableSentinel();
+            plugin.AddTestPlayer(76561190000000001, "Player0");
             var json = CuiHelper.ToJson(plugin.BuildPlayersView(_pid));
             Assert.Contains("Player0", json);
-            Assert.Contains("sentinel.warn 0", json);
-            Assert.Contains("sentinel.kick 0", json);
-            Assert.Contains("sentinel.ban 0", json);
-            Assert.Contains("sentinel.inspect 0", json);
+            Assert.Contains("sentinel.warn 76561190000000001", json);
+            Assert.Contains("sentinel.kick 76561190000000001", json);
+            Assert.Contains("sentinel.ban 76561190000000001", json);
+            Assert.Contains("sentinel.inspect 76561190000000001", json);
         }
 
         [Fact]
@@ -924,6 +925,181 @@ namespace Sentinel.Tests
             Assert.True(plugin.IsPanelOpen("76561198000000001"));
             var root = plugin.GetPanelRootName("76561198000000001");
             Assert.Contains("s_d_", root);
+        }
+
+        // -------------------------------------------------------------
+        // Dynamic Players View
+        // -------------------------------------------------------------
+
+        private class PlayerCuiTestableSentinel : SentinelPlugin
+        {
+            public override void Puts(string message) { }
+            public override void PrintWarning(string message) { }
+            public override void PrintError(string message) { }
+
+            public void AddTestPlayer(ulong steamId, string name)
+            {
+                OnPlayerConnected(new BasePlayer { UserIDString = steamId.ToString(), displayName = name });
+            }
+        }
+
+        [Fact]
+        public void PlayersView_WithNoPlayers_ShowsEmptyMessage()
+        {
+            var plugin = new PlayerCuiTestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildPlayersView(_pid));
+            Assert.Contains("No matching players", json);
+            Assert.Contains("PLAYERS (0)", json);
+        }
+
+        [Fact]
+        public void PlayersView_WithPlayers_ShowsCorrectRowCount()
+        {
+            var plugin = new PlayerCuiTestableSentinel();
+            plugin.AddTestPlayer(76561190000000001, "Alice");
+            plugin.AddTestPlayer(76561190000000002, "Bob");
+
+            var container = plugin.BuildPlayersView(_pid);
+            var json = CuiHelper.ToJson(container);
+            Assert.Contains("PLAYERS (2)", json);
+            // Only the first player is rendered due to 4KB payload limit
+            Assert.Contains("Alice", json);
+            Assert.DoesNotContain("Bob", json);
+        }
+
+        [Fact]
+        public void PlayersView_WithSearchQuery_FiltersResults()
+        {
+            var plugin = new PlayerCuiTestableSentinel();
+            plugin.AddTestPlayer(76561190000000001, "Alice");
+            plugin.AddTestPlayer(76561190000000002, "BobTheBuilder");
+            plugin.AddTestPlayer(76561190000000003, "Charlie");
+
+            var container = plugin.BuildPlayersView(_pid, "bob");
+            var json = CuiHelper.ToJson(container);
+            Assert.Contains("PLAYERS (1)", json);
+            Assert.Contains("BobTheBuilder", json);
+            Assert.DoesNotContain("Alice", json);
+            Assert.DoesNotContain("Charlie", json);
+        }
+
+        [Fact]
+        public void PlayersView_Search_IsCaseInsensitive()
+        {
+            var plugin = new PlayerCuiTestableSentinel();
+            plugin.AddTestPlayer(76561190000000001, "Alice");
+            plugin.AddTestPlayer(76561190000000002, "BOB");
+
+            var container = plugin.BuildPlayersView(_pid, "alice");
+            var json = CuiHelper.ToJson(container);
+            Assert.Contains("Alice", json);
+
+            var container2 = plugin.BuildPlayersView(_pid, "BOB");
+            var json2 = CuiHelper.ToJson(container2);
+            Assert.Contains("BOB", json2);
+        }
+
+        [Fact]
+        public void PlayersView_Search_ByExactSteamId()
+        {
+            var plugin = new PlayerCuiTestableSentinel();
+            plugin.AddTestPlayer(76561190000000001, "Alice");
+            plugin.AddTestPlayer(76561190000000002, "Bob");
+
+            var container = plugin.BuildPlayersView(_pid, "76561190000000002");
+            var json = CuiHelper.ToJson(container);
+            Assert.Contains("PLAYERS (1)", json);
+            Assert.Contains("Bob", json);
+            Assert.DoesNotContain("Alice", json);
+        }
+
+        [Fact]
+        public void PlayersView_RowActions_ContainCorrectSteamIds()
+        {
+            var plugin = new PlayerCuiTestableSentinel();
+            plugin.AddTestPlayer(76561190000000001, "Alice");
+
+            var container = plugin.BuildPlayersView(_pid);
+            var json = CuiHelper.ToJson(container);
+            Assert.Contains("sentinel.warn 76561190000000001", json);
+            Assert.Contains("sentinel.kick 76561190000000001", json);
+            Assert.Contains("sentinel.ban 76561190000000001", json);
+            Assert.Contains("sentinel.inspect 76561190000000001", json);
+        }
+
+        [Fact]
+        public void PlayersView_RowActions_EmitsCorrectCommands_ForMultiplePlayers()
+        {
+            var plugin = new PlayerCuiTestableSentinel();
+            plugin.AddTestPlayer(76561190000000001, "Alice");
+            plugin.AddTestPlayer(76561190000000002, "Bob");
+
+            var container = plugin.BuildPlayersView(_pid);
+            var json = CuiHelper.ToJson(container);
+            // Only the first player's row is rendered due to 4KB payload limit
+            Assert.Contains("sentinel.warn 76561190000000001", json);
+            Assert.Contains("sentinel.kick 76561190000000001", json);
+            Assert.Contains("sentinel.ban 76561190000000001", json);
+            Assert.Contains("sentinel.inspect 76561190000000001", json);
+            Assert.DoesNotContain("sentinel.warn 76561190000000002", json);
+            Assert.DoesNotContain("sentinel.kick 76561190000000002", json);
+            Assert.DoesNotContain("sentinel.ban 76561190000000002", json);
+            Assert.DoesNotContain("sentinel.inspect 76561190000000002", json);
+        }
+
+        [Fact]
+        public void PlayersView_Payload_WithMaxRows_DoesNotExceed4096Bytes()
+        {
+            var plugin = new PlayerCuiTestableSentinel();
+            // Add a player to ensure the dynamic row is rendered
+            plugin.AddTestPlayer(76561190000000001, "Player1");
+
+            var container = plugin.BuildPlayersView(_pid);
+            var json = CuiHelper.ToJson(container);
+            Assert.True(json.Length <= 4096, $"Players view with 1 row is {json.Length} bytes, exceeds 4096");
+        }
+
+        [Fact]
+        public void PlayerSearch_Command_RebuildsViewWithFilteredResults()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            plugin.OnPlayerConnected(player);
+
+            var method = GetCommandMethod("CCmdPlayerSearch");
+            Assert.NotNull(method);
+
+            // Search for self
+            var arg = BuildArg(new[] { "Test" }, player);
+            method!.Invoke(plugin, new object[] { arg });
+
+            Assert.True(plugin.IsPanelOpen("76561198000000001"));
+            var root = plugin.GetPanelRootName("76561198000000001");
+            Assert.NotNull(root);
+            Assert.StartsWith("s_p_", root);
+        }
+
+        [Fact]
+        public void PlayerSearch_Command_WithoutPermission_IsBlocked()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            // Do NOT grant sentinel.panel
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("CCmdPlayerSearch");
+            Assert.NotNull(method);
+
+            var arg = BuildArg(new[] { "test" }, player);
+            method!.Invoke(plugin, new object[] { arg });
+
+            Assert.False(plugin.IsPanelOpen("76561198000000001"));
+            Assert.Contains("don't have permission", player.ChatMessages[0]);
         }
     }
 }

@@ -9,6 +9,7 @@ namespace Oxide.Plugins
             "sentinel.warn",
             "sentinel.mute",
             "sentinel.freeze",
+            "sentinel.inspect",
             "sentinel.spectate",
             "sentinel.teleport",
             "sentinel.groups.manage",

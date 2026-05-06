@@ -137,14 +137,14 @@ namespace Oxide.Plugins
         [ConsoleCommand("sentinel.ban")]
         void CCmdBan(ConsoleSystem.Arg arg)
         {
-            if (arg.Args == null || arg.Args.Length < 2)
+            if (arg.Args == null || arg.Args.Length < 1)
             {
                 Puts("Usage: sentinel.ban \u003cplayer\u003e \u003cduration_minutes|0\u003e \"[reason]\"");
                 return;
             }
 
             var targetId = arg.Args[0];
-            var duration = int.TryParse(arg.Args[1], out var d) && d > 0 ? d : (int?)null;
+            var duration = arg.Args.Length > 1 && int.TryParse(arg.Args[1], out var d) && d > 0 ? d : (int?)null;
             var reason = arg.Args.Length > 2 ? arg.Args[2] : "No reason given";
             var admin = arg.Player();
 
@@ -251,14 +251,14 @@ namespace Oxide.Plugins
         [ConsoleCommand("sentinel.warn")]
         void CCmdWarn(ConsoleSystem.Arg arg)
         {
-            if (arg.Args == null || arg.Args.Length < 2)
+            if (arg.Args == null || arg.Args.Length < 1)
             {
                 Puts("Usage: sentinel.warn \u003cplayer\u003e \"[reason]\"");
                 return;
             }
 
             var targetId = arg.Args[0];
-            var reason = arg.Args[1];
+            var reason = arg.Args.Length > 1 ? arg.Args[1] : "No reason given";
             var admin = arg.Player();
 
             if (!ExecuteWarn(admin, targetId, reason, out var error))
@@ -406,6 +406,61 @@ namespace Oxide.Plugins
             else
             {
                 Puts($"[Sentinel] Toggled freeze for {targetId}.");
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Inspect
+        // ---------------------------------------------------------------
+        public bool ExecuteInspect(BasePlayer? admin, string targetIdentifier, out string error)
+        {
+            error = "";
+            var actorId = admin?.UserIDString ?? "console";
+            var actorName = admin?.displayName ?? "Console";
+
+            if (!HasPermission(admin, "sentinel.inspect"))
+            {
+                error = "No permission";
+                LogAuditAction(actorId, actorName, null, null, "inspect", null, null, false);
+                if (admin != null) NotifyNoPermission(admin);
+                return false;
+            }
+
+            var target = ResolveTarget(targetIdentifier);
+            if (target == null)
+            {
+                error = "Player not found";
+                LogAuditAction(actorId, actorName, null, null, "inspect", null, null, false);
+                return false;
+            }
+
+            var info = $"[Sentinel] Inspect: {target.displayName} ({target.UserIDString}) | IP: {target.Address ?? "N/A"} | Pos: {target.Position.x:F1}, {target.Position.y:F1}, {target.Position.z:F1}";
+            admin?.ChatMessage(info);
+
+            LogAuditAction(actorId, actorName, target.UserIDString, target.displayName, "inspect", null, null, true,
+                $"{{\"position\":\"{target.Position.x:F1},{target.Position.y:F1},{target.Position.z:F1}\"}}");
+            return true;
+        }
+
+        [ConsoleCommand("sentinel.inspect")]
+        void CCmdInspect(ConsoleSystem.Arg arg)
+        {
+            if (arg.Args == null || arg.Args.Length < 1)
+            {
+                Puts("Usage: sentinel.inspect <player>");
+                return;
+            }
+
+            var targetId = arg.Args[0];
+            var admin = arg.Player();
+
+            if (!ExecuteInspect(admin, targetId, out var error))
+            {
+                Puts($"[Sentinel] Inspect failed: {error}");
+            }
+            else
+            {
+                Puts($"[Sentinel] Inspected {targetId}.");
             }
         }
     }

@@ -57,8 +57,8 @@ namespace Sentinel.Tests
             connection.Open();
             using var command = connection.CreateCommand();
             command.CommandText = actionType != null
-                ? "SELECT actor_steam_id, target_steam_id, action_type, success FROM sentinel_actions WHERE action_type = @type ORDER BY id;"
-                : "SELECT actor_steam_id, target_steam_id, action_type, success FROM sentinel_actions ORDER BY id;";
+                ? "SELECT actor_steam_id, target_steam_id, action_type, reason, duration_minutes, success FROM sentinel_actions WHERE action_type = @type ORDER BY id;"
+                : "SELECT actor_steam_id, target_steam_id, action_type, reason, duration_minutes, success FROM sentinel_actions ORDER BY id;";
             if (actionType != null)
                 command.Parameters.AddWithValue("@type", actionType);
 
@@ -71,7 +71,9 @@ namespace Sentinel.Tests
                     ActorSteamId = reader.GetString(0),
                     TargetSteamId = reader.IsDBNull(1) ? null : reader.GetString(1),
                     ActionType = reader.GetString(2),
-                    Success = reader.GetInt32(3) == 1
+                    Reason = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    DurationMinutes = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                    Success = reader.GetInt32(5) == 1
                 });
             }
             return rows;
@@ -82,6 +84,8 @@ namespace Sentinel.Tests
             public string ActorSteamId { get; set; } = "";
             public string? TargetSteamId { get; set; }
             public string ActionType { get; set; } = "";
+            public string? Reason { get; set; }
+            public int? DurationMinutes { get; set; }
             public bool Success { get; set; }
         }
 
@@ -805,6 +809,133 @@ namespace Sentinel.Tests
 
             var state = _plugin.GetOrCreateModerationState(target.UserIDString);
             Assert.Equal(3, state.WarnCount);
+        }
+
+        // Inspect
+        [Fact]
+        public void Inspect_WithPermission_Succeeds()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.inspect");
+
+            var result = _plugin.ExecuteInspect(admin, "Target", out var error);
+            Assert.True(result);
+            Assert.Equal("", error);
+            Assert.Contains("Inspect: Target", admin.ChatMessages[0]);
+        }
+
+        [Fact]
+        public void Inspect_WithoutPermission_IsDenied()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            CreatePlayer(76561190000000002, "Target");
+            // No sentinel.inspect granted
+
+            var result = _plugin.ExecuteInspect(admin, "Target", out var error);
+            Assert.False(result);
+            Assert.Equal("No permission", error);
+            Assert.Contains("don't have permission", admin.ChatMessages[0]);
+        }
+
+        [Fact]
+        public void Inspect_TargetNotFound_Fails()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.inspect");
+
+            var result = _plugin.ExecuteInspect(admin, "Missing", out var error);
+            Assert.False(result);
+            Assert.Equal("Player not found", error);
+        }
+
+        [Fact]
+        public void Inspect_GeneratesAuditRow()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.inspect");
+
+            _plugin.ExecuteInspect(admin, "Target", out _);
+
+            var rows = GetAuditRows("inspect");
+            Assert.Single(rows);
+            Assert.Equal("76561190000000001", rows[0].ActorSteamId);
+            Assert.Equal("76561190000000002", rows[0].TargetSteamId);
+            Assert.True(rows[0].Success);
+        }
+
+        [Fact]
+        public void Inspect_ConsoleCommand_WithArgs_Succeeds()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.inspect");
+            BasePlayer.activePlayerList.Add(admin);
+            BasePlayer.activePlayerList.Add(target);
+
+            var method = typeof(SentinelPlugin).GetMethod("CCmdInspect",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(method);
+
+            var arg = new Oxide.Core.ConsoleSystem.Arg
+            {
+                Args = new[] { "76561190000000002" },
+                _player = admin
+            };
+            method!.Invoke(_plugin, new object[] { arg });
+
+            Assert.Contains(_plugin.Logs, log => log.Contains("Inspected"));
+        }
+
+        [Fact]
+        public void Warn_ConsoleCommand_WithOneArg_UsesDefaultReason()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.warn");
+            BasePlayer.activePlayerList.Add(admin);
+            BasePlayer.activePlayerList.Add(target);
+
+            var method = typeof(SentinelPlugin).GetMethod("CCmdWarn",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(method);
+
+            var arg = new Oxide.Core.ConsoleSystem.Arg
+            {
+                Args = new[] { "76561190000000002" },
+                _player = admin
+            };
+            method!.Invoke(_plugin, new object[] { arg });
+
+            Assert.Contains(_plugin.Logs, log => log.Contains("Warned"));
+            var rows = GetAuditRows("warn");
+            Assert.Contains(rows, r => r.Success);
+        }
+
+        [Fact]
+        public void Ban_ConsoleCommand_WithOneArg_UsesPermanentDuration()
+        {
+            var admin = CreatePlayer(76561190000000001, "Admin");
+            var target = CreatePlayer(76561190000000002, "Target");
+            _mockPermission.Grant(admin.UserIDString, "sentinel.ban");
+            BasePlayer.activePlayerList.Add(admin);
+            BasePlayer.activePlayerList.Add(target);
+
+            var method = typeof(SentinelPlugin).GetMethod("CCmdBan",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(method);
+
+            var arg = new Oxide.Core.ConsoleSystem.Arg
+            {
+                Args = new[] { "76561190000000002" },
+                _player = admin
+            };
+            method!.Invoke(_plugin, new object[] { arg });
+
+            Assert.Contains(_plugin.Logs, log => log.Contains("Banned"));
+            var rows = GetAuditRows("ban");
+            Assert.Contains(rows, r => r.Success && r.DurationMinutes == null);
         }
     }
 }

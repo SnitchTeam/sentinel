@@ -183,22 +183,47 @@ namespace Oxide.Plugins
         }
 
         // Players: list, search, per-row Warn/Kick/Ban/Inspect
-        public CuiElementContainer BuildPlayersView(string playerId)
+        public CuiElementContainer BuildPlayersView(string playerId, string? searchQuery = null)
         {
             var c = NewCuiContainer();
             var root = "s_p_" + playerId;
             AddPanel(c, root, "Overlay", CUI_COLOR_BACKGROUND, "0.05 0.05", "0.95 0.95", "0 0", "0 0");
 
-            AddLabel(c, "t", root, "PLAYERS (0)", CUI_COLOR_PRIMARY_TEXT, 18, "0 0.92", "0.5 1", "10 0", "0 0");
-            AddLabel(c, "st", root, "Online: 0", CUI_COLOR_SECONDARY_TEXT, 10, "0.50 0.92", "0.70 0.98", "0 0", "0 0");
+            var players = SearchOnlinePlayers(searchQuery ?? "");
+            var onlineCount = GetOnlinePlayers().Count;
+
+            AddLabel(c, "t", root, $"PLAYERS ({players.Count})", CUI_COLOR_PRIMARY_TEXT, 18, "0 0.92", "0.5 1", "10 0", "0 0");
+            AddLabel(c, "st", root, $"Online: {onlineCount}", CUI_COLOR_SECONDARY_TEXT, 10, "0.50 0.92", "0.70 0.98", "0 0", "0 0");
             AddInputField(c, "q", root, "Search...", CUI_COLOR_PRIMARY_TEXT, "sentinel.search ", "0.02 0.84", "0.60 0.90", "8 0", "-8 0", 12, 32);
 
-            // One full demo row with all four action buttons (no row panel to save bytes)
-            AddLabel(c, "n0", root, "Player0", CUI_COLOR_PRIMARY_TEXT, 12, "0.03 0.68", "0.35 0.78", "5 0", "0 0");
-            AddButton(c, "w0", root, "W", CUI_COLOR_WARNING, CUI_COLOR_PRIMARY_TEXT, "sentinel.warn 0", "0.60 0.66", "0.68 0.80", "0 0", "0 0", 10);
-            AddButton(c, "k0", root, "K", CUI_COLOR_DANGER, CUI_COLOR_PRIMARY_TEXT, "sentinel.kick 0", "0.69 0.66", "0.77 0.80", "0 0", "0 0", 10);
-            AddButton(c, "b0", root, "B", CUI_COLOR_DANGER, CUI_COLOR_PRIMARY_TEXT, "sentinel.ban 0", "0.78 0.66", "0.86 0.80", "0 0", "0 0", 10);
-            AddButton(c, "i0", root, "I", CUI_COLOR_ACCENT, CUI_COLOR_PRIMARY_TEXT, "sentinel.inspect 0", "0.87 0.66", "0.98 0.80", "0 0", "0 0", 10);
+            const int maxRows = 1;
+
+            if (players.Count == 0)
+            {
+                AddLabel(c, "empty", root, "No matching players", CUI_COLOR_SECONDARY_TEXT, 12, "0.03 0.50", "0.98 0.60", "5 0", "0 0", "MiddleCenter");
+            }
+            else
+            {
+                for (int i = 0; i < Math.Min(players.Count, maxRows); i++)
+                {
+                    var p = players[i];
+                    var yMin = 0.72 - i * 0.16;
+                    var yMax = yMin + 0.14;
+
+                    var yMinStr = yMin.ToString("F2", CultureInfo.InvariantCulture);
+                    var yMaxStr = yMax.ToString("F2", CultureInfo.InvariantCulture);
+
+                    // Player name
+                    AddLabel(c, "n" + i, root, p.Name, CUI_COLOR_PRIMARY_TEXT, 12, "0.03 " + yMinStr, "0.35 " + yMaxStr, "5 0", "0 0");
+
+                    // Action buttons with actual Steam ID
+                    var steamId = p.SteamId;
+                    AddButton(c, "w" + i, root, "W", CUI_COLOR_WARNING, CUI_COLOR_PRIMARY_TEXT, $"sentinel.warn {steamId}", "0.60 " + yMinStr, "0.68 " + yMaxStr, "0 0", "0 0", 10);
+                    AddButton(c, "k" + i, root, "K", CUI_COLOR_DANGER, CUI_COLOR_PRIMARY_TEXT, $"sentinel.kick {steamId}", "0.69 " + yMinStr, "0.77 " + yMaxStr, "0 0", "0 0", 10);
+                    AddButton(c, "b" + i, root, "B", CUI_COLOR_DANGER, CUI_COLOR_PRIMARY_TEXT, $"sentinel.ban {steamId}", "0.78 " + yMinStr, "0.86 " + yMaxStr, "0 0", "0 0", 10);
+                    AddButton(c, "i" + i, root, "I", CUI_COLOR_ACCENT, CUI_COLOR_PRIMARY_TEXT, $"sentinel.inspect {steamId}", "0.87 " + yMinStr, "0.98 " + yMaxStr, "0 0", "0 0", 10);
+                }
+            }
 
             return c;
         }
