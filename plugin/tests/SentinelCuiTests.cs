@@ -1149,5 +1149,194 @@ namespace Sentinel.Tests
             Assert.False(plugin.IsPanelOpen("76561198000000001"));
             Assert.Contains("don't have permission", player.ChatMessages[0]);
         }
+
+        // -------------------------------------------------------------
+        // Performance: Zero FPS Impact When Panel is Closed
+        // -------------------------------------------------------------
+
+        private class FlagTrackingPlayer : PanelTestPlayer
+        {
+            public System.Collections.Generic.Dictionary<string, bool> Flags { get; } = new();
+            public override void SetPlayerFlag(string flag, bool value) => Flags[flag] = value;
+        }
+
+        private static FlagTrackingPlayer CreateFlagTrackingPlayer(string steamId, string name)
+        {
+            return new FlagTrackingPlayer
+            {
+                UserIDString = steamId,
+                displayName = name
+            };
+        }
+
+        [Fact]
+        public void Performance_OpenPanel_SetsNeedsCursorFlag()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateFlagTrackingPlayer("76561198000000001", "TestPlayer");
+            plugin.OpenPanel(player);
+
+            Assert.True(player.Flags.TryGetValue("NeedsCursor", out var cursor) && cursor,
+                "OpenPanel must set NeedsCursor=true so the client enables raycast/interaction logic.");
+        }
+
+        [Fact]
+        public void Performance_ClosePanel_ClearsNeedsCursorFlag()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateFlagTrackingPlayer("76561198000000001", "TestPlayer");
+            plugin.OpenPanel(player);
+            plugin.ClosePanel(player);
+
+            Assert.True(player.Flags.TryGetValue("NeedsCursor", out var cursor) && !cursor,
+                "ClosePanel must set NeedsCursor=false to disable client-side raycasts and input capture.");
+        }
+
+        [Fact]
+        public void Performance_IsAnyPanelOpen_TrueWhenAtLeastOnePanelOpen()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            Assert.False(plugin.IsAnyPanelOpen());
+
+            plugin.OpenPanel(player);
+            Assert.True(plugin.IsAnyPanelOpen());
+        }
+
+        [Fact]
+        public void Performance_IsAnyPanelOpen_FalseWhenAllPanelsClosed()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            plugin.OpenPanel(player);
+            plugin.ClosePanel(player);
+
+            Assert.False(plugin.IsAnyPanelOpen());
+        }
+
+        [Fact]
+        public void Performance_GlobalCounter_AccurateAfterMultipleOpenClose()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            perm.Grant("76561198000000002", "sentinel.panel");
+            plugin.permission = perm;
+
+            var p1 = CreateTestPlayer("76561198000000001", "A");
+            var p2 = CreateTestPlayer("76561198000000002", "B");
+
+            plugin.OpenPanel(p1);
+            plugin.OpenPanel(p2);
+            Assert.True(plugin.IsAnyPanelOpen());
+
+            plugin.ClosePanel(p1);
+            Assert.True(plugin.IsAnyPanelOpen());
+
+            plugin.ClosePanel(p2);
+            Assert.False(plugin.IsAnyPanelOpen());
+        }
+
+        [Fact]
+        public void Performance_SwitchView_MaintainsCursorFlag()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateFlagTrackingPlayer("76561198000000001", "TestPlayer");
+            plugin.SwitchView(player, "players");
+
+            Assert.True(player.Flags.TryGetValue("NeedsCursor", out var cursor) && cursor,
+                "SwitchView must set NeedsCursor=true after mounting the new panel.");
+        }
+
+        [Fact]
+        public void Performance_SearchCommand_MaintainsCursorFlag()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateFlagTrackingPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("CCmdPlayerSearch");
+            Assert.NotNull(method);
+
+            var arg = BuildArg(new[] { "test" }, player);
+            method!.Invoke(plugin, new object[] { arg });
+
+            Assert.True(player.Flags.TryGetValue("NeedsCursor", out var cursor) && cursor,
+                "Player search command must set NeedsCursor=true after mounting the panel.");
+        }
+
+        [Fact]
+        public void Performance_ShouldProcessCuiWork_MatchesAnyPanelOpen()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            Assert.Equal(plugin.IsAnyPanelOpen(), plugin.ShouldProcessCuiWork());
+
+            plugin.OpenPanel(player);
+            Assert.True(plugin.ShouldProcessCuiWork());
+
+            plugin.ClosePanel(player);
+            Assert.False(plugin.ShouldProcessCuiWork());
+        }
+
+        [Fact]
+        public void Performance_ReOpenAfterClose_SetsCursorFlagAgain()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateFlagTrackingPlayer("76561198000000001", "TestPlayer");
+            plugin.OpenPanel(player);
+            plugin.ClosePanel(player);
+            plugin.OpenPanel(player);
+
+            Assert.True(player.Flags.TryGetValue("NeedsCursor", out var cursor) && cursor,
+                "Re-opening panel after close must restore NeedsCursor=true.");
+        }
+
+        [Fact]
+        public void Performance_CloseIdempotent_DoesNotUnderflowCounter()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            plugin.OpenPanel(player);
+            plugin.ClosePanel(player);
+            plugin.ClosePanel(player); // idempotent
+            plugin.ClosePanel(player); // idempotent
+
+            Assert.False(plugin.IsAnyPanelOpen());
+        }
     }
 }

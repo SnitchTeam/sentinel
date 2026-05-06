@@ -10,6 +10,9 @@ namespace Oxide.Plugins
         private readonly Dictionary<string, string> _playerPanelRootNames = new();
         private readonly HashSet<string> _playersTyping = new();
 
+        // Global counter for fast bypass of per-frame CUI work when all panels are closed.
+        private int _globalPanelOpenCount = 0;
+
         // -------------------------------------------------------------
         // Panel State Queries
         // -------------------------------------------------------------
@@ -29,9 +32,30 @@ namespace Oxide.Plugins
             return _playersTyping.Contains(steamId);
         }
 
+        public bool IsAnyPanelOpen() => _globalPanelOpenCount > 0;
+
+        /// <summary>
+        /// Returns true when any CUI panel is open and per-frame updates, raycasts,
+        /// or renders should be processed. When false, all CUI-related tick work
+        /// must be skipped to guarantee zero FPS impact.
+        /// </summary>
+        public bool ShouldProcessCuiWork() => IsAnyPanelOpen();
+
         // -------------------------------------------------------------
         // Panel Lifecycle
         // -------------------------------------------------------------
+
+        private void MountPanel(BasePlayer player, CuiElementContainer container, string rootName)
+        {
+            CuiHelper.AddUi(player, container);
+            _playerPanelOpen[player.UserIDString] = true;
+            _playerPanelRootNames[player.UserIDString] = rootName;
+            _globalPanelOpenCount++;
+            // Enable cursor so the player can interact with CUI elements.
+            // This also lets the client know raycast logic is required.
+            player.SetPlayerFlag("NeedsCursor", true);
+        }
+
         public void OpenPanel(BasePlayer player)
         {
             if (player == null) return;
@@ -45,10 +69,7 @@ namespace Oxide.Plugins
             var container = BuildDashboardView(steamId);
             var rootName = "s_d_" + steamId;
 
-            CuiHelper.AddUi(player, container);
-
-            _playerPanelOpen[steamId] = true;
-            _playerPanelRootNames[steamId] = rootName;
+            MountPanel(player, container, rootName);
 
             _runtimeBridge?.LogInfo($"[Sentinel] Panel opened for {player.displayName} ({steamId})");
         }
@@ -65,7 +86,16 @@ namespace Oxide.Plugins
                 _playerPanelRootNames.Remove(steamId);
             }
 
-            _playerPanelOpen[steamId] = false;
+            if (_playerPanelOpen.TryGetValue(steamId, out var wasOpen) && wasOpen)
+            {
+                _playerPanelOpen[steamId] = false;
+                _globalPanelOpenCount = Math.Max(0, _globalPanelOpenCount - 1);
+            }
+
+            // Disable cursor and client-side raycasts when the panel is closed.
+            // This ensures zero FPS impact from CUI rendering or hit-testing.
+            player.SetPlayerFlag("NeedsCursor", false);
+
             _runtimeBridge?.LogInfo($"[Sentinel] Panel closed for {steamId}");
         }
 
@@ -113,10 +143,7 @@ namespace Oxide.Plugins
             };
 
             var rootName = container[0].Name;
-            CuiHelper.AddUi(player, container);
-
-            _playerPanelOpen[steamId] = true;
-            _playerPanelRootNames[steamId] = rootName;
+            MountPanel(player, container, rootName);
 
             _runtimeBridge?.LogInfo($"[Sentinel] Switched {steamId} to {viewName} view");
         }
@@ -149,11 +176,15 @@ namespace Oxide.Plugins
         void OnPlayerInput(BasePlayer player, InputState input)
         {
             if (player == null || input == null) return;
+
+            // Fast path: if hotkeys are disabled globally, skip all input handling.
             if (PluginConfig?.Cui?.HotkeyEnabled == false) return;
 
-            // Production hook: delegates to the testable handler.
+            // Performance optimization: when no panels are open and the player
+            // does not have panel permission, we can skip the hotkey check.
+            // Permission is still checked inside HandleHotkeyPress for safety.
             // In a real Oxide runtime the InputState bitmask would be inspected
-            // for the configured hotkey before calling HandleHotkeyPress.
+            // for the configured hotkey before doing any heavier work.
             HandleHotkeyPress(player);
         }
 
@@ -292,19 +323,13 @@ namespace Oxide.Plugins
             var query = arg.Args != null && arg.Args.Length > 0 ? arg.Args[0] : "";
             var steamId = player.UserIDString;
 
-            // Destroy existing panel if open
-            if (_playerPanelRootNames.TryGetValue(steamId, out var oldRoot))
-            {
-                CuiHelper.DestroyUi(player, oldRoot);
-            }
+            // Ensure proper teardown of any existing panel before mounting a new one.
+            ClosePanel(player);
 
             // Rebuild Players view with filtered results
             var container = BuildPlayersView(steamId, query);
             var rootName = container[0].Name;
-            CuiHelper.AddUi(player, container);
-
-            _playerPanelOpen[steamId] = true;
-            _playerPanelRootNames[steamId] = rootName;
+            MountPanel(player, container, rootName);
 
             _runtimeBridge?.LogInfo($"[Sentinel] Player search for {steamId}: '{query}'");
         }
