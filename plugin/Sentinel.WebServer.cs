@@ -38,6 +38,8 @@ namespace Oxide.Plugins
     {
         private readonly IHttpListenerWrapper _listener;
         private readonly IRuntimeBridge? _logger;
+        private readonly SentinelWebAuth _auth;
+        private readonly SentinelRateLimiter _rateLimiter;
         private CancellationTokenSource? _cts;
         private Task? _listenerTask;
         private int _currentPort;
@@ -46,11 +48,15 @@ namespace Oxide.Plugins
         public bool IsRunning => _listener.IsListening;
         public bool IsDisabled => _disabled;
         public int CurrentPort => _currentPort;
+        public SentinelWebAuth Auth => _auth;
+        public SentinelRateLimiter RateLimiter => _rateLimiter;
 
-        public SentinelWebServer(IHttpListenerWrapper listener, IRuntimeBridge? logger)
+        public SentinelWebServer(IHttpListenerWrapper listener, IRuntimeBridge? logger, string authToken = "", int rateLimitPerMinute = 60, int rateLimitWindowSeconds = 60)
         {
             _listener = listener;
             _logger = logger;
+            _auth = new SentinelWebAuth(authToken);
+            _rateLimiter = new SentinelRateLimiter(rateLimitPerMinute, rateLimitWindowSeconds);
         }
 
         public virtual void Start(int port)
@@ -165,6 +171,24 @@ namespace Oxide.Plugins
             {
                 var path = context.Request.Url?.AbsolutePath ?? "/";
                 var method = context.Request.HttpMethod;
+                var clientIp = context.Request.RemoteEndPoint?.Address?.ToString() ?? "unknown";
+
+                // 1. Rate limiting (applied before auth to prevent brute force)
+                if (!_rateLimiter.IsAllowed(clientIp, out var retryAfter))
+                {
+                    context.Response.StatusCode = 429;
+                    context.Response.Headers["Retry-After"] = retryAfter.ToString();
+                    context.Response.Close();
+                    return;
+                }
+
+                // 2. Authentication — required for all requests
+                if (!_auth.IsAuthenticated(context.Request))
+                {
+                    context.Response.StatusCode = 401;
+                    context.Response.Close();
+                    return;
+                }
 
                 if (method == "GET" && path == "/")
                 {
@@ -214,7 +238,12 @@ namespace Oxide.Plugins
 
         public virtual SentinelWebServer CreateWebServer()
         {
-            return new SentinelWebServer(new HttpListenerWrapper(), _runtimeBridge);
+            var config = PluginConfig?.WebPanel;
+            return new SentinelWebServer(
+                new HttpListenerWrapper(),
+                _runtimeBridge,
+                config?.AuthToken ?? "",
+                config?.RateLimitPerMinute ?? 60);
         }
 
         public virtual void StartWebServer(int port)
