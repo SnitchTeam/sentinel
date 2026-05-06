@@ -19,7 +19,8 @@ namespace Oxide.Plugins
             "sentinel.console",
             "sentinel.audit",
             "sentinel.panel",
-            "sentinel.ai"
+            "sentinel.ai",
+            "sentinel.tickprofile"
         };
 
         public void RegisterPermissions()

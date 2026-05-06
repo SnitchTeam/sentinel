@@ -21,11 +21,13 @@ namespace Oxide.Plugins
             InitializeLlmClient();
             InitializeDiscordRouter();
             InitializeWebServer();
+            InitializeTickProfiler();
             EmitBootBanner();
         }
 
         private void Unload()
         {
+            _tickProfiler?.StopProfiling();
             StopWebServer();
             StopDiscordRouter();
             CloseDatabase();
