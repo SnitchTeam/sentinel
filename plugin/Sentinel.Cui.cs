@@ -316,25 +316,66 @@ namespace Oxide.Plugins
         }
 
         // AI: model status, suggestion queue, confidence threshold, response history
-        public CuiElementContainer BuildAiView(string playerId)
+        public CuiElementContainer BuildAiView(string playerId, AiSuggestion? suggestion = null)
         {
             var c = NewCuiContainer();
             var root = "s_a_" + playerId;
             AddPanel(c, root, "Overlay", CUI_COLOR_BACKGROUND, "0.05 0.05", "0.95 0.95", "0 0", "0 0");
 
             AddLabel(c, "t", root, "AI", CUI_COLOR_PRIMARY_TEXT, 18, "0 0.92", "0.5 1", "10 0", "0 0");
-            AddLabel(c, "ms", root, "Model: gpt-4o-mini | Online | Threshold: 75%", CUI_COLOR_SECONDARY_TEXT, 11, "0.02 0.86", "0.98 0.91", "5 0", "0 0");
+            var modelStatus = $"Model: {(PluginConfig?.AI.Model ?? "gpt-4o-mini")} | Online | Threshold: 75%";
+            AddLabel(c, "ms", root, modelStatus, CUI_COLOR_SECONDARY_TEXT, 11, "0.02 0.86", "0.98 0.91", "5 0", "0 0");
 
-            // Suggestion queue card (compact)
-            AddPanel(c, "cd", root, CUI_COLOR_SURFACE, "0.02 0.56", "0.98 0.84", "0 0", "0 0");
-            AddLabel(c, "cdp", "cd", "PlayerA | aim | 85%", CUI_COLOR_PRIMARY_TEXT, 12, "0 0.55", "1 0.85", "5 0", "0 0");
-            AddButton(c, "cda", "cd", "ACCEPT", CUI_COLOR_SUCCESS, CUI_COLOR_PRIMARY_TEXT, "sentinel.ai accept", "0.02 0.05", "0.31 0.20", "0 0", "0 0", 10);
-            AddButton(c, "cdr", "cd", "REJECT", CUI_COLOR_DANGER, CUI_COLOR_PRIMARY_TEXT, "sentinel.ai reject", "0.34 0.05", "0.63 0.20", "0 0", "0 0", 10);
-            AddButton(c, "cde", "cd", "EDIT", CUI_COLOR_ACCENT, CUI_COLOR_PRIMARY_TEXT, "sentinel.ai edit", "0.66 0.05", "0.96 0.20", "0 0", "0 0", 10);
+            if (suggestion != null)
+            {
+                // Suggestion queue card (compact)
+                AddPanel(c, "cd", root, CUI_COLOR_SURFACE, "0.02 0.56", "0.98 0.84", "0 0", "0 0");
+                var cardText = $"{suggestion.PlayerName} | {suggestion.Behavior} | {suggestion.Confidence}%";
+                AddLabel(c, "cdp", "cd", cardText, CUI_COLOR_PRIMARY_TEXT, 12, "0 0.55", "1 0.85", "5 0", "0 0");
+
+                var cmdAccept = $"sentinel.ai accept {suggestion.Id}";
+                var cmdReject = $"sentinel.ai reject {suggestion.Id}";
+                var cmdEdit = $"sentinel.ai edit {suggestion.Id}";
+
+                AddButton(c, "cda", "cd", "ACCEPT", CUI_COLOR_SUCCESS, CUI_COLOR_PRIMARY_TEXT, cmdAccept, "0.02 0.05", "0.31 0.20", "0 0", "0 0", 10);
+                AddButton(c, "cdr", "cd", "REJECT", CUI_COLOR_DANGER, CUI_COLOR_PRIMARY_TEXT, cmdReject, "0.34 0.05", "0.63 0.20", "0 0", "0 0", 10);
+                AddButton(c, "cde", "cd", "EDIT", CUI_COLOR_ACCENT, CUI_COLOR_PRIMARY_TEXT, cmdEdit, "0.66 0.05", "0.96 0.20", "0 0", "0 0", 10);
+            }
+            else
+            {
+                AddLabel(c, "empty", root, "No AI suggestions pending", CUI_COLOR_SECONDARY_TEXT, 12, "0.02 0.56", "0.98 0.84", "5 0", "0 0", "MiddleCenter");
+            }
 
             // Response history (1 row without panel)
             AddLabel(c, "hl", root, "HISTORY", CUI_COLOR_SECONDARY_TEXT, 11, "0.02 0.50", "0.3 0.55", "5 0", "0 0");
             AddLabel(c, "hm0", root, "[12:00] Triage result 1", CUI_COLOR_PRIMARY_TEXT, 10, "0.03 0.38", "0.98 0.48", "4 0", "0 0");
+
+            return c;
+        }
+
+        // AI Edit: inline editor for modifying suggestion before applying
+        public CuiElementContainer BuildAiEditView(string playerId, AiSuggestion suggestion)
+        {
+            var c = NewCuiContainer();
+            var root = "s_ae_" + playerId;
+            AddPanel(c, root, "Overlay", CUI_COLOR_BACKGROUND, "0.05 0.05", "0.95 0.95", "0 0", "0 0");
+
+            AddLabel(c, "t", root, "EDIT", CUI_COLOR_PRIMARY_TEXT, 16, "0 0.92", "0.3 1", "10 0", "0 0");
+
+            // Combined info line
+            AddLabel(c, "info", root, $"{suggestion.PlayerName} ({suggestion.SteamId}) | {suggestion.Behavior} | {suggestion.Confidence}% | {suggestion.RecommendedAction}", CUI_COLOR_SECONDARY_TEXT, 10, "0.02 0.84", "0.98 0.90", "5 0", "0 0");
+
+            // Reason input (no label to save bytes)
+            AddInputField(c, "ir", root, suggestion.Reason, CUI_COLOR_PRIMARY_TEXT, $"sentinel.ai.edit.reason {suggestion.Id} ", "0.02 0.68", "0.98 0.76", "4 0", "-4 0", 10, 80);
+
+            // Duration input (no label to save bytes)
+            var durationPlaceholder = suggestion.DurationMinutes?.ToString() ?? "0";
+            AddInputField(c, "id", root, durationPlaceholder, CUI_COLOR_PRIMARY_TEXT, $"sentinel.ai.edit.duration {suggestion.Id} ", "0.02 0.58", "0.50 0.66", "4 0", "-4 0", 10, 8);
+
+            // Save and Cancel buttons
+            var saveCmd = $"sentinel.ai save {suggestion.Id}";
+            AddButton(c, "bsv", root, "SAVE", CUI_COLOR_SUCCESS, CUI_COLOR_PRIMARY_TEXT, saveCmd, "0.15 0.05", "0.40 0.14", "0 0", "0 0", 11);
+            AddButton(c, "bcn", root, "CANCEL", CUI_COLOR_SURFACE, CUI_COLOR_PRIMARY_TEXT, "sentinel.view ai", "0.60 0.05", "0.85 0.14", "0 0", "0 0", 11);
 
             return c;
         }

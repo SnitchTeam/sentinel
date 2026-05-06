@@ -106,7 +106,8 @@ namespace Oxide.Plugins
                 "logs" => BuildLogsView(steamId),
                 "bans" => BuildBansView(steamId),
                 "config" => BuildConfigView(steamId),
-                "ai" => BuildAiView(steamId),
+                "ai" => BuildAiView(steamId, GetNextSuggestion()),
+                "ai_edit" => BuildAiEditView(steamId, GetSuggestionById(_playerEditingSuggestion.GetValueOrDefault(steamId) ?? "") ?? new AiSuggestion()),
                 "permissions" => BuildPermissionsView(steamId),
                 _ => BuildDashboardView(steamId)
             };

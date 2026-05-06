@@ -17,6 +17,19 @@ namespace Sentinel.Tests
 
         private static readonly string _pid = "76561198000000001";
 
+        private static readonly AiSuggestion _testSuggestion = new()
+        {
+            Id = "test-suggestion-001",
+            PlayerName = "PlayerA",
+            SteamId = "76561190000000001",
+            Behavior = "aim",
+            Confidence = 85,
+            RecommendedAction = "ban",
+            Reason = "Aim assistance detected",
+            DurationMinutes = 1440,
+            AgentName = "AntiCheat"
+        };
+
         private static CuiElementContainer GetView(TestableSentinel plugin, string viewName)
         {
             return viewName switch
@@ -26,7 +39,7 @@ namespace Sentinel.Tests
                 "Logs" => plugin.BuildLogsView(_pid),
                 "Bans" => plugin.BuildBansView(_pid),
                 "Config" => plugin.BuildConfigView(_pid),
-                "AI" => plugin.BuildAiView(_pid),
+                "AI" => plugin.BuildAiView(_pid, _testSuggestion),
                 "Permissions" => plugin.BuildPermissionsView(_pid),
                 _ => throw new ArgumentException("Unknown view: " + viewName)
             };
@@ -799,7 +812,7 @@ namespace Sentinel.Tests
         public void Ai_ContainsSuggestionQueueWithActions()
         {
             var plugin = new TestableSentinel();
-            var json = CuiHelper.ToJson(plugin.BuildAiView(_pid));
+            var json = CuiHelper.ToJson(plugin.BuildAiView(_pid, _testSuggestion));
             Assert.Contains("PlayerA", json);
             Assert.Contains("aim", json);
             Assert.Contains("85%", json);
@@ -809,6 +822,41 @@ namespace Sentinel.Tests
             Assert.Contains("sentinel.ai accept", json);
             Assert.Contains("sentinel.ai reject", json);
             Assert.Contains("sentinel.ai edit", json);
+        }
+
+        [Fact]
+        public void Ai_WithoutSuggestion_ShowsEmptyMessage()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildAiView(_pid));
+            Assert.Contains("No AI suggestions pending", json);
+        }
+
+        [Fact]
+        public void AiEditView_ContainsPreFilledFields()
+        {
+            var plugin = new TestableSentinel();
+            var json = CuiHelper.ToJson(plugin.BuildAiEditView(_pid, _testSuggestion));
+            Assert.Contains("PlayerA", json);
+            Assert.Contains("76561190000000001", json);
+            Assert.Contains("aim", json);
+            Assert.Contains("85%", json);
+            Assert.Contains("ban", json);
+            Assert.Contains("SAVE", json);
+            Assert.Contains("CANCEL", json);
+            Assert.Contains("sentinel.ai save", json);
+            Assert.Contains("sentinel.view ai", json);
+            Assert.Contains("sentinel.ai.edit.reason", json);
+            Assert.Contains("sentinel.ai.edit.duration", json);
+        }
+
+        [Fact]
+        public void AiEditView_Payload_DoesNotExceed4096Bytes()
+        {
+            var plugin = new TestableSentinel();
+            var container = plugin.BuildAiEditView(_pid, _testSuggestion);
+            var json = CuiHelper.ToJson(container);
+            Assert.True(json.Length <= 4096, $"AI Edit view payload is {json.Length} bytes, exceeds 4096");
         }
 
         [Fact]

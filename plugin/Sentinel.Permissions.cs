@@ -18,7 +18,8 @@ namespace Oxide.Plugins
             "sentinel.plugins",
             "sentinel.console",
             "sentinel.audit",
-            "sentinel.panel"
+            "sentinel.panel",
+            "sentinel.ai"
         };
 
         public void RegisterPermissions()
