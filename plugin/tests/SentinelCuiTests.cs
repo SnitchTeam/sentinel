@@ -1555,5 +1555,6 @@ namespace Sentinel.Tests
 
             Assert.False(plugin.IsAnyPanelOpen());
         }
+
     }
 }

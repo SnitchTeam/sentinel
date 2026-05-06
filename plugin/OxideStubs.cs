@@ -371,6 +371,9 @@ namespace Oxide.Plugins
             {
                 var propValue = prop.GetValue(value);
                 if (propValue == null) continue;
+                if (propValue is string s && s.Length == 0) continue;
+                if (propValue is int i && i == 0) continue;
+                if (propValue is float f && f == 0f) continue;
                 var jsonProp = prop.GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonPropertyNameAttribute), false);
                 string propName = jsonProp.Length > 0 ? ((System.Text.Json.Serialization.JsonPropertyNameAttribute)jsonProp[0]).Name : prop.Name.ToLowerInvariant();
                 writer.WritePropertyName(propName);
