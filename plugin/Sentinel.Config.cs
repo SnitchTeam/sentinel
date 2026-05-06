@@ -26,6 +26,10 @@ namespace Oxide.Plugins
         public double DailyUsdCap { get; set; } = 5.0;
         public int MaxRetries { get; set; } = 3;
         public int TimeoutSeconds { get; set; } = 15;
+        public string FallbackProvider { get; set; } = "anthropic";
+        public string FallbackEndpoint { get; set; } = "https://api.anthropic.com/v1";
+        public string FallbackModel { get; set; } = "claude-3-haiku-20240307";
+        public string FallbackApiKey { get; set; } = "";
     }
 
     public class BansConfig

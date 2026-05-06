@@ -73,7 +73,7 @@ namespace Sentinel.Tests
         public void Schema_CreatesExpectedTableCount()
         {
             var tables = GetTableNames();
-            Assert.Equal(10, tables.Count);
+            Assert.Equal(11, tables.Count);
         }
 
         [Fact]
@@ -201,7 +201,7 @@ namespace Sentinel.Tests
             _plugin.InitializeDatabase(_dbPath);
 
             var tables = GetTableNames();
-            Assert.Equal(10, tables.Count);
+            Assert.Equal(11, tables.Count);
         }
 
         [Fact]

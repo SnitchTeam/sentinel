@@ -162,6 +162,16 @@ namespace Oxide.Plugins
                     primary_indicators TEXT,
                     is_heuristic INTEGER NOT NULL DEFAULT 0,
                     timestamp INTEGER NOT NULL
+                );",
+                @"CREATE TABLE IF NOT EXISTS sentinel_ai_cost_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    input_tokens INTEGER NOT NULL,
+                    output_tokens INTEGER NOT NULL,
+                    cost_usd REAL NOT NULL,
+                    day TEXT NOT NULL,
+                    timestamp INTEGER NOT NULL
                 );"
             };
 
@@ -187,7 +197,8 @@ namespace Oxide.Plugins
                 "CREATE INDEX IF NOT EXISTS idx_rules_rule_id ON sentinel_rules(rule_id);",
                 "CREATE INDEX IF NOT EXISTS idx_rules_category ON sentinel_rules(category);",
                 "CREATE INDEX IF NOT EXISTS idx_anticheat_steam ON sentinel_anticheat_events(steam_id);",
-                "CREATE INDEX IF NOT EXISTS idx_anticheat_timestamp ON sentinel_anticheat_events(timestamp);"
+                "CREATE INDEX IF NOT EXISTS idx_anticheat_timestamp ON sentinel_anticheat_events(timestamp);",
+                "CREATE INDEX IF NOT EXISTS idx_ai_cost_day ON sentinel_ai_cost_log(day);"
             };
 
             foreach (var sql in indexes)

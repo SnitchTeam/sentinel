@@ -17,6 +17,7 @@ namespace Oxide.Plugins
             RegisterPermissions();
             InitializeDefaultGroups();
             RestoreWorldState();
+            InitializeAiCostTracker();
             InitializeLlmClient();
             EmitBootBanner();
         }

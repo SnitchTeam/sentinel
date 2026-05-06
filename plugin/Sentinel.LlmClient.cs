@@ -25,6 +25,8 @@ namespace Oxide.Plugins
         public string Content { get; set; } = "";
         public bool IsFallback { get; set; }
         public string Error { get; set; } = "";
+        public int? LastHttpStatusCode { get; set; }
+        public bool WasTimeout { get; set; }
     }
 
     public interface IHttpRequester
@@ -76,6 +78,10 @@ namespace Oxide.Plugins
                 return new LlmResponse { Success = false, Error = ex.Message, IsFallback = false };
             }
 
+            int? lastStatusCode = null;
+            bool wasTimeout = false;
+            string lastErrorContent = "";
+
             for (int attempt = 1; attempt <= _maxRetries; attempt++)
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_timeoutSeconds));
@@ -93,11 +99,13 @@ namespace Oxide.Plugins
                         return new LlmResponse { Success = true, Content = content, IsFallback = false };
                     }
 
-                    var errorContent = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
-                    _logger?.LogWarning($"[Sentinel] LLM request failed on attempt {attempt}: HTTP {(int)response.StatusCode} - {errorContent}");
+                    lastErrorContent = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
+                    lastStatusCode = (int)response.StatusCode;
+                    _logger?.LogWarning($"[Sentinel] LLM request failed on attempt {attempt}: HTTP {lastStatusCode} - {lastErrorContent}");
                 }
                 catch (OperationCanceledException) when (cts.Token.IsCancellationRequested)
                 {
+                    wasTimeout = true;
                     _logger?.LogWarning($"[Sentinel] LLM request timed out on attempt {attempt} (>{_timeoutSeconds}s)");
                 }
                 catch (Exception ex)
@@ -114,17 +122,20 @@ namespace Oxide.Plugins
             }
 
             _logger?.LogWarning($"[Sentinel] LLM request exhausted all {_maxRetries} attempts. Returning heuristic fallback.");
-            return FallbackResponse(request.Prompt);
+            return FallbackResponse(request.Prompt, lastStatusCode, wasTimeout, lastErrorContent);
         }
 
-        public static LlmResponse FallbackResponse(string? prompt)
+        public static LlmResponse FallbackResponse(string? prompt, int? lastStatusCode = null, bool wasTimeout = false, string? error = null)
         {
             var hash = ComputeDeterministicHash(prompt);
             return new LlmResponse
             {
                 Success = true,
                 Content = $"[HEURISTIC] Fallback response. Hash={hash} Length={prompt?.Length ?? 0}",
-                IsFallback = true
+                IsFallback = true,
+                LastHttpStatusCode = lastStatusCode,
+                WasTimeout = wasTimeout,
+                Error = error ?? ""
             };
         }
 

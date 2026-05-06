@@ -49,49 +49,36 @@ namespace Oxide.Plugins
 
             try
             {
-                var config = PluginConfig?.AI ?? new AIConfig();
-                if (_llmClient != null && !string.IsNullOrWhiteSpace(config.ApiKey))
+                llmResponse = SendAiRequest(prompt);
+
+                if (llmResponse != null && llmResponse.Success && !llmResponse.IsFallback)
                 {
-                    var request = new LlmRequest
+                    var rawReason = ExtractLlmText(llmResponse.Content);
+                    if (!string.IsNullOrWhiteSpace(rawReason) && rawReason.Length <= 500 && ContainsCitation(rawReason))
                     {
-                        Provider = config.Provider,
-                        Endpoint = config.Endpoint,
-                        ApiKey = config.ApiKey,
-                        Model = config.Model,
-                        Prompt = prompt
-                    };
-
-                    llmResponse = _llmClient.SendAsync(request).ConfigureAwait(false).GetAwaiter().GetResult();
-
-                    if (llmResponse != null && llmResponse.Success && !llmResponse.IsFallback)
+                        result = new BanDraftResult
+                        {
+                            Reason = rawReason,
+                            IsHeuristic = false,
+                            HasCitation = true
+                        };
+                    }
+                    else if (!string.IsNullOrWhiteSpace(rawReason) && rawReason.Length <= 500 && !ContainsCitation(rawReason))
                     {
-                        var rawReason = ExtractLlmText(llmResponse.Content);
-                        if (!string.IsNullOrWhiteSpace(rawReason) && rawReason.Length <= 500 && ContainsCitation(rawReason))
-                        {
-                            result = new BanDraftResult
-                            {
-                                Reason = rawReason,
-                                IsHeuristic = false,
-                                HasCitation = true
-                            };
-                        }
-                        else if (!string.IsNullOrWhiteSpace(rawReason) && rawReason.Length <= 500 && !ContainsCitation(rawReason))
-                        {
-                            _runtimeBridge?.LogWarning("[Sentinel] Ban Draft LLM response lacks citation. Retrying...");
+                        _runtimeBridge?.LogWarning("[Sentinel] Ban Draft LLM response lacks citation. Retrying...");
 
-                            llmResponse = _llmClient.SendAsync(request).ConfigureAwait(false).GetAwaiter().GetResult();
-                            if (llmResponse != null && llmResponse.Success && !llmResponse.IsFallback)
+                        llmResponse = SendAiRequest(prompt);
+                        if (llmResponse != null && llmResponse.Success && !llmResponse.IsFallback)
+                        {
+                            var retryReason = ExtractLlmText(llmResponse.Content);
+                            if (!string.IsNullOrWhiteSpace(retryReason) && retryReason.Length <= 500)
                             {
-                                var retryReason = ExtractLlmText(llmResponse.Content);
-                                if (!string.IsNullOrWhiteSpace(retryReason) && retryReason.Length <= 500)
+                                result = new BanDraftResult
                                 {
-                                    result = new BanDraftResult
-                                    {
-                                        Reason = retryReason,
-                                        IsHeuristic = false,
-                                        HasCitation = ContainsCitation(retryReason)
-                                    };
-                                }
+                                    Reason = retryReason,
+                                    IsHeuristic = false,
+                                    HasCitation = ContainsCitation(retryReason)
+                                };
                             }
                         }
                     }

@@ -106,20 +106,7 @@ namespace Oxide.Plugins
 
             try
             {
-                var config = PluginConfig?.AI ?? new AIConfig();
-                if (_llmClient != null && !string.IsNullOrWhiteSpace(config.ApiKey))
-                {
-                    var request = new LlmRequest
-                    {
-                        Provider = config.Provider,
-                        Endpoint = config.Endpoint,
-                        ApiKey = config.ApiKey,
-                        Model = config.Model,
-                        Prompt = prompt
-                    };
-
-                    llmResponse = _llmClient.SendAsync(request).ConfigureAwait(false).GetAwaiter().GetResult();
-                }
+                llmResponse = SendAiRequest(prompt);
             }
             catch (Exception ex)
             {
