@@ -7,6 +7,8 @@ namespace Oxide.Plugins
     [Description("AI Admin & Anti-Cheat Suite for Rust")]
     public partial class Sentinel : RustPlugin
     {
+        private LlmClient? _llmClient;
+
         private void Init()
         {
             LoadPluginConfig();
@@ -15,12 +17,24 @@ namespace Oxide.Plugins
             RegisterPermissions();
             InitializeDefaultGroups();
             RestoreWorldState();
+            InitializeLlmClient();
             EmitBootBanner();
         }
 
         private void Unload()
         {
             CloseDatabase();
+        }
+
+        public virtual void InitializeLlmClient()
+        {
+            var config = PluginConfig?.AI ?? new AIConfig();
+            _llmClient = CreateLlmClient(config);
+        }
+
+        public virtual LlmClient CreateLlmClient(AIConfig config)
+        {
+            return new LlmClient(new DefaultHttpRequester(), _runtimeBridge, config.MaxRetries, config.TimeoutSeconds);
         }
 
         public override void Puts(string message)
