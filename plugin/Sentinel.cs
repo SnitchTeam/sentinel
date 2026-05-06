@@ -19,11 +19,13 @@ namespace Oxide.Plugins
             RestoreWorldState();
             InitializeAiCostTracker();
             InitializeLlmClient();
+            InitializeDiscordRouter();
             EmitBootBanner();
         }
 
         private void Unload()
         {
+            StopDiscordRouter();
             CloseDatabase();
         }
 
@@ -92,14 +94,14 @@ namespace Oxide.Plugins
 
         public void EmitBootBanner()
         {
-            var attr = typeof(Sentinel).GetCustomAttribute<InfoAttribute>();
-            var version = attr?.Version ?? "unknown";
+            var version = GetVersionString();
             var runtime = _runtimeBridge?.Runtime.ToString() ?? "Unknown";
             var dbStatus = (_dbConnection != null && _dbConnection.State == System.Data.ConnectionState.Open)
                 ? "Ready"
                 : "NotReady";
 
             _runtimeBridge?.LogInfo($"[Sentinel] Boot — Sentinel v{version} | Runtime={runtime} | Database={dbStatus}");
+            DispatchDiscordWebhook("system", "Sentinel System", $"Sentinel v{version} started. Runtime={runtime}, Database={dbStatus}.");
         }
     }
 }

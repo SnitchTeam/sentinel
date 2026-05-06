@@ -33,6 +33,7 @@ namespace Oxide.Plugins
 
             target.Kick(reason);
             LogAuditAction(actorId, actorName, target.UserIDString, target.displayName, "kick", reason, null, true);
+            DispatchDiscordWebhook("kick", "Player Kicked", $"{target.displayName} (`{target.UserIDString}`) was kicked by {actorName}.\nReason: {reason}");
             return true;
         }
 
@@ -131,6 +132,9 @@ namespace Oxide.Plugins
             }
 
             LogAuditAction(actorId, actorName, targetSteamId, targetName, "ban", reason, durationMinutes, true);
+            var banDesc = $"{targetName} (`{targetSteamId}`) was banned by {actorName}.\nReason: {reason}";
+            if (durationMinutes.HasValue) banDesc += $"\nDuration: {durationMinutes} minutes";
+            DispatchDiscordWebhook("ban", "Player Banned", banDesc);
             return true;
         }
 
@@ -191,6 +195,7 @@ namespace Oxide.Plugins
 
             LogAuditAction(actorId, actorName, target.UserIDString, target.displayName, "warn", reason, null, true,
                 $"{{\"warnCount\":{warnCount}}}");
+            DispatchDiscordWebhook("warn", "Player Warned", $"{target.displayName} (`{target.UserIDString}`) was warned by {actorName}.\nReason: {reason}\nTotal warnings: {warnCount}");
             return true;
         }
 
@@ -324,6 +329,9 @@ namespace Oxide.Plugins
 
             LogAuditAction(actorId, actorName, target.UserIDString, target.displayName, "mute", $"{muteType}", durationMinutes, true,
                 $"{{\"muteType\":\"{muteType}\",\"warnCount\":{state.WarnCount}}}");
+            var muteDesc = $"{target.displayName} (`{target.UserIDString}`) was muted ({muteType}) by {actorName}.";
+            if (durationMinutes.HasValue) muteDesc += $"\nDuration: {durationMinutes} minutes";
+            DispatchDiscordWebhook("mute", "Player Muted", muteDesc);
             return true;
         }
 
@@ -384,6 +392,7 @@ namespace Oxide.Plugins
 
             LogAuditAction(actorId, actorName, target.UserIDString, target.displayName, "freeze", action, null, true,
                 $"{{\"frozen\":{state.IsFrozen.ToString().ToLower()}}}");
+            DispatchDiscordWebhook("freeze", "Player Frozen/Unfrozen", $"{target.displayName} (`{target.UserIDString}`) was {action} by {actorName}.");
             return true;
         }
 

@@ -83,6 +83,13 @@ namespace Oxide.Plugins
         public bool HotkeyEnabled { get; set; } = true;
     }
 
+    public class DiscordConfig
+    {
+        public bool Enabled { get; set; } = true;
+        public Dictionary<string, string> Webhooks { get; set; } = new();
+        public int DailyDigestHour { get; set; } = 8;
+    }
+
     public class SentinelConfig
     {
         public DatabaseConfig Database { get; set; } = new();
@@ -92,6 +99,7 @@ namespace Oxide.Plugins
         public GroupsConfig Groups { get; set; } = new();
         public WorldConfig World { get; set; } = new();
         public CuiPanelConfig Cui { get; set; } = new();
+        public DiscordConfig Discord { get; set; } = new();
         public bool ByokKeyValid { get; set; }
     }
 

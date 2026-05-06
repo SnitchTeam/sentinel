@@ -46,6 +46,11 @@ namespace Oxide.Plugins
         public void AddAiSuggestion(AiSuggestion suggestion)
         {
             _aiSuggestions.Add(suggestion);
+            DispatchDiscordWebhook("ai_alert", "AI Alert",
+                $"**{suggestion.PlayerName}** (`{suggestion.SteamId}`) flagged by **{suggestion.AgentName}**.\n" +
+                $"Behavior: {suggestion.Behavior}\n" +
+                $"Confidence: {suggestion.Confidence}%\n" +
+                $"Recommended: {suggestion.RecommendedAction}");
         }
 
         public bool RemoveSuggestion(string id)
