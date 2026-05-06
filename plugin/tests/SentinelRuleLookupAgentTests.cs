@@ -754,5 +754,71 @@ namespace Sentinel.Tests
             var result = _plugin.ParseLlmRuleLookupResponse("{\"broken\":}");
             Assert.Null(result);
         }
+
+        // ---------------------------------------------------------
+        // Snake_case JSON parsing tests
+        // ---------------------------------------------------------
+
+        [Fact]
+        public void Rule_ParseLlmRuleLookupResponse_SnakeCaseJson_ParsesAllFields()
+        {
+            var snakeCaseJson = @"[{""rule_id"":""§1.1"",""title"":""No Cheating"",""description"":""No aimbots or wallhacks"",""score"":0.92}]";
+
+            var result = _plugin.ParseLlmRuleLookupResponse(snakeCaseJson);
+
+            Assert.NotNull(result);
+            Assert.Single(result);
+            Assert.Equal("§1.1", result[0].RuleId);
+            Assert.Equal("No Cheating", result[0].Title);
+            Assert.Equal("No aimbots or wallhacks", result[0].Description);
+            Assert.Equal(0.92, result[0].Score);
+        }
+
+        [Fact]
+        public void RuleLookup_LlmResponse_SnakeCaseJson_ReturnsMatches()
+        {
+            var snakeCaseJson = @"[{""rule_id"":""§1.1"",""title"":""No Cheating"",""description"":""No aimbots"",""score"":0.92},{""rule_id"":""§1.2"",""title"":""No Exploits"",""description"":""No glitches"",""score"":0.78}]";
+            var mockResponse = new LlmResponse
+            {
+                Success = true,
+                IsFallback = false,
+                Content = snakeCaseJson
+            };
+            _plugin.MockLlmClient = new MockLlmClient(mockResponse);
+            _plugin.SetPluginConfig(new SentinelConfig { AI = new AIConfig { ApiKey = "test-key" } });
+            _plugin.InitializeLlmClient();
+
+            var result = _plugin.RunRuleLookupAgent("Player using aimbot");
+
+            Assert.Equal(2, result.Matches.Count);
+            Assert.Equal("§1.1", result.Matches[0].RuleId);
+            Assert.Equal("No Cheating", result.Matches[0].Title);
+            Assert.Equal(0.92, result.Matches[0].Score);
+            Assert.Equal("§1.2", result.Matches[1].RuleId);
+            Assert.Equal("No Exploits", result.Matches[1].Title);
+            Assert.Equal(0.78, result.Matches[1].Score);
+            Assert.False(result.IsHeuristic);
+        }
+
+        [Fact]
+        public void RuleLookup_LlmResponse_SnakeCaseJson_LowScoresFiltered()
+        {
+            var snakeCaseJson = @"[{""rule_id"":""§1.1"",""title"":""No Cheating"",""score"":0.92},{""rule_id"":""§1.2"",""title"":""No Exploits"",""score"":0.55}]";
+            var mockResponse = new LlmResponse
+            {
+                Success = true,
+                IsFallback = false,
+                Content = snakeCaseJson
+            };
+            _plugin.MockLlmClient = new MockLlmClient(mockResponse);
+            _plugin.SetPluginConfig(new SentinelConfig { AI = new AIConfig { ApiKey = "test-key" } });
+            _plugin.InitializeLlmClient();
+
+            var result = _plugin.RunRuleLookupAgent("Player using aimbot");
+
+            Assert.Single(result.Matches);
+            Assert.Equal("§1.1", result.Matches[0].RuleId);
+            Assert.False(result.IsHeuristic);
+        }
     }
 }

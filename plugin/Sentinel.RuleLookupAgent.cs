@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace Oxide.Plugins
@@ -18,9 +19,16 @@ namespace Oxide.Plugins
 
     public class RuleMatch
     {
+        [JsonPropertyName("rule_id")]
         public string RuleId { get; set; } = "";
+
+        [JsonPropertyName("title")]
         public string Title { get; set; } = "";
+
+        [JsonPropertyName("description")]
         public string Description { get; set; } = "";
+
+        [JsonPropertyName("score")]
         public double Score { get; set; }
     }
 
