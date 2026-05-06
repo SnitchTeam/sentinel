@@ -312,11 +312,11 @@ namespace Sentinel.Tests
         [Fact]
         public void Auth_ConstantTimeComparison_TimingDistribution()
         {
-            const string correctToken = "correct-token-12345";
-            const string earlyDiff = "xorrect-token-12345";
-            const string lateDiff = "correct-token-1234x";
-            const int warmup = 500;
-            const int iterations = 2000;
+            const string correctToken = "correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345";
+            const string earlyDiff = "xorrect-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345";
+            const string lateDiff = "correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-12345-correct-token-1234x";
+            const int warmup = 1000;
+            const int iterations = 5000;
 
             // Warmup
             for (int i = 0; i < warmup; i++)
