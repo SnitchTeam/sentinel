@@ -34,10 +34,10 @@ namespace Oxide.Plugins
                 Parent = parent,
                 Components = new List<ICuiComponent>
                 {
-                    new CuiRawImageComponent
+                    new CuiImageComponent
                     {
                         Color = color,
-                        Sprite = sprite ?? ""
+                        Sprite = sprite ?? "assets/icons/icon.png"
                     },
                     new CuiRectTransformComponent
                     {

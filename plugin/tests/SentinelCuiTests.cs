@@ -128,16 +128,17 @@ namespace Sentinel.Tests
         }
 
         [Fact]
-        public void Builder_ProducesValidPanelWithRawImageAndRectTransform()
+        public void Builder_ProducesValidPanelWithImageAndRectTransform()
         {
             var plugin = new TestableSentinel();
             var c = plugin.NewCuiContainer();
             plugin.AddPanel(c, "p1", "Overlay", "#0a0a0a", "0 0", "1 1", "0 0", "0 0");
             var json = CuiHelper.ToJson(c);
-            Assert.Contains("\"type\":\"UnityEngine.UI.RawImage\"", json);
+            Assert.Contains("\"type\":\"UnityEngine.UI.Image\"", json);
             Assert.Contains("\"type\":\"RectTransform\"", json);
             Assert.Contains("\"name\":\"p1\"", json);
             Assert.Contains("\"parent\":\"Overlay\"", json);
+            Assert.Contains("\"sprite\":\"assets/icons/icon.png\"", json);
         }
 
         [Fact]

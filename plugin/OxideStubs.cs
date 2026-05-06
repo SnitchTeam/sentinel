@@ -235,6 +235,16 @@ namespace Oxide.Plugins
         [System.Text.Json.Serialization.JsonPropertyName("fadein")] public float? FadeIn { get; set; }
     }
 
+    public class CuiImageComponent : ICuiComponent
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("color")] public string Color { get; set; } = "1 1 1 1";
+        [System.Text.Json.Serialization.JsonPropertyName("sprite")] public string Sprite { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("material")] public string Material { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("imagetype")] public int ImageType { get; set; } = 0;
+        [System.Text.Json.Serialization.JsonPropertyName("png")] public string Png { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("fadein")] public float? FadeIn { get; set; }
+    }
+
     public class CuiTextComponent : ICuiComponent
     {
         [System.Text.Json.Serialization.JsonPropertyName("text")] public string Text { get; set; } = "";
@@ -328,6 +338,7 @@ namespace Oxide.Plugins
             string typeName = value switch
             {
                 CuiRawImageComponent => "UnityEngine.UI.RawImage",
+                CuiImageComponent => "UnityEngine.UI.Image",
                 CuiTextComponent => "UnityEngine.UI.Text",
                 CuiButtonComponent => "UnityEngine.UI.Button",
                 CuiInputFieldComponent => "UnityEngine.UI.InputField",
