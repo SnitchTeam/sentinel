@@ -88,6 +88,7 @@ namespace Oxide.Plugins
         public GroupsConfig Groups { get; set; } = new();
         public WorldConfig World { get; set; } = new();
         public CuiPanelConfig Cui { get; set; } = new();
+        public bool ByokKeyValid { get; set; }
     }
 
     public partial class Sentinel

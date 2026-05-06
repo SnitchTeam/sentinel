@@ -30,11 +30,45 @@ namespace Oxide.Plugins
         {
             var config = PluginConfig?.AI ?? new AIConfig();
             _llmClient = CreateLlmClient(config);
+
+            if (PluginConfig != null)
+            {
+                PluginConfig.ByokKeyValid = false;
+            }
+
+            if (string.IsNullOrWhiteSpace(config.ApiKey))
+            {
+                PrintWarning("[Sentinel] No BYOK API key configured. AI features disabled.");
+                return;
+            }
+
+            var validator = CreateByokValidator();
+            var isValid = validator.ValidateAsync(config.Provider, config.Endpoint, config.ApiKey)
+                .ConfigureAwait(false).GetAwaiter().GetResult();
+
+            if (PluginConfig != null)
+            {
+                PluginConfig.ByokKeyValid = isValid;
+            }
+
+            if (!isValid)
+            {
+                PrintError($"[Sentinel] BYOK key rejected for provider {config.Provider}. AI features disabled.");
+            }
+            else
+            {
+                Puts($"[Sentinel] BYOK key accepted for provider {config.Provider}.");
+            }
         }
 
         public virtual LlmClient CreateLlmClient(AIConfig config)
         {
             return new LlmClient(new DefaultHttpRequester(), _runtimeBridge, config.MaxRetries, config.TimeoutSeconds);
+        }
+
+        public virtual ByokValidator CreateByokValidator()
+        {
+            return new ByokValidator(new DefaultHttpRequester(), _runtimeBridge);
         }
 
         public override void Puts(string message)
