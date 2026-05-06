@@ -192,7 +192,10 @@ namespace Oxide.Plugins
                 "CREATE INDEX IF NOT EXISTS idx_group_members_group ON sentinel_group_members(group_id);",
                 "CREATE INDEX IF NOT EXISTS idx_group_members_steam ON sentinel_group_members(steam_id);",
                 "CREATE INDEX IF NOT EXISTS idx_ai_log_timestamp ON sentinel_ai_log(timestamp);",
+                "CREATE INDEX IF NOT EXISTS idx_ai_log_agent ON sentinel_ai_log(agent_name);",
+                "CREATE INDEX IF NOT EXISTS idx_ai_log_verdict ON sentinel_ai_log(verdict);",
                 "CREATE INDEX IF NOT EXISTS idx_baselines_steam_metric ON sentinel_baselines(steam_id, metric_name);",
+
                 "CREATE INDEX IF NOT EXISTS idx_warnings_target_id ON sentinel_warnings(target_id);",
                 "CREATE INDEX IF NOT EXISTS idx_rules_rule_id ON sentinel_rules(rule_id);",
                 "CREATE INDEX IF NOT EXISTS idx_rules_category ON sentinel_rules(category);",

@@ -245,6 +245,8 @@ namespace Sentinel.Tests
             Assert.Contains("idx_rules_category", indexes);
             Assert.Contains("idx_anticheat_steam", indexes);
             Assert.Contains("idx_anticheat_timestamp", indexes);
+            Assert.Contains("idx_ai_log_agent", indexes);
+            Assert.Contains("idx_ai_log_verdict", indexes);
         }
     }
 }

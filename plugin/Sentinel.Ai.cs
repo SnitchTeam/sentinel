@@ -19,6 +19,14 @@ namespace Oxide.Plugins
         public long CreatedAt { get; set; } = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
     }
 
+    public class AiFeedbackAggregationRow
+    {
+        public string AgentName { get; set; } = "";
+        public long TotalFeedback { get; set; }
+        public long Accepts { get; set; }
+        public long Rejects { get; set; }
+    }
+
     public partial class Sentinel
     {
         private readonly List<AiSuggestion> _aiSuggestions = new();
@@ -53,6 +61,100 @@ namespace Oxide.Plugins
         public void SetPendingAiEdit(string suggestionId, string reason, int? duration)
         {
             _pendingAiEdits[suggestionId] = (reason, duration);
+        }
+
+        public string? QueryAgentNameByRequestId(string requestId)
+        {
+            if (_dbConnection == null) return null;
+            try
+            {
+                using var command = _dbConnection.CreateCommand();
+                command.CommandText = "SELECT agent_name FROM sentinel_ai_log WHERE request_id = @requestId LIMIT 1;";
+                command.Parameters.AddWithValue("@requestId", requestId);
+                var result = command.ExecuteScalar();
+                return result?.ToString();
+            }
+            catch (Exception ex)
+            {
+                _runtimeBridge?.LogError($"[Sentinel] QueryAgentNameByRequestId failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        public bool ExecuteAiFeedback(BasePlayer? admin, string requestId, string verdict, out string error)
+        {
+            error = "";
+            var actorId = admin?.UserIDString ?? "console";
+            var actorName = admin?.displayName ?? "Console";
+
+            if (!HasPermission(admin, "sentinel.ai"))
+            {
+                error = "No permission";
+                LogAuditAction(actorId, actorName, null, null, "ai_feedback", $"{requestId}:{verdict}", null, false);
+                if (admin != null) NotifyNoPermission(admin);
+                return false;
+            }
+
+            var normalizedVerdict = verdict.ToLowerInvariant();
+            if (normalizedVerdict != "accept" && normalizedVerdict != "reject")
+            {
+                error = "Verdict must be 'accept' or 'reject'";
+                LogAuditAction(actorId, actorName, null, null, "ai_feedback", $"{requestId}:{verdict}", null, false);
+                return false;
+            }
+
+            var agentName = QueryAgentNameByRequestId(requestId);
+            if (string.IsNullOrEmpty(agentName))
+            {
+                error = "AI log entry not found for request ID";
+                LogAuditAction(actorId, actorName, null, null, "ai_feedback", $"{requestId}:{verdict}", null, false);
+                return false;
+            }
+
+            LogAiFeedback(agentName, requestId, normalizedVerdict, actorId);
+            LogAuditAction(actorId, actorName, null, null, "ai_feedback", $"{requestId}:{normalizedVerdict}", null, true,
+                $"{{\"requestId\":\"{requestId}\",\"agent\":\"{agentName}\",\"verdict\":\"{normalizedVerdict}\"}}");
+            return true;
+        }
+
+        public List<AiFeedbackAggregationRow> QueryAiFeedbackAggregation(long? sinceTimestamp = null)
+        {
+            var results = new List<AiFeedbackAggregationRow>();
+            if (_dbConnection == null) return results;
+
+            try
+            {
+                using var command = _dbConnection.CreateCommand();
+                command.CommandText = @"
+                    SELECT agent_name,
+                           COUNT(*) AS total,
+                           SUM(CASE WHEN verdict = 'accept' THEN 1 ELSE 0 END) AS accepts,
+                           SUM(CASE WHEN verdict = 'reject' THEN 1 ELSE 0 END) AS rejects
+                    FROM sentinel_ai_log
+                    WHERE verdict IS NOT NULL
+                      AND (@since IS NULL OR timestamp >= @since)
+                    GROUP BY agent_name
+                    ORDER BY agent_name;";
+                command.Parameters.AddWithValue("@since", sinceTimestamp.HasValue ? (object)sinceTimestamp.Value : DBNull.Value);
+
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    results.Add(new AiFeedbackAggregationRow
+                    {
+                        AgentName = reader.GetString(0),
+                        TotalFeedback = reader.GetInt64(1),
+                        Accepts = reader.GetInt64(2),
+                        Rejects = reader.GetInt64(3)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _runtimeBridge?.LogError($"[Sentinel] AI feedback aggregation query failed: {ex.Message}");
+            }
+
+            return results;
         }
 
         public void LogAiFeedback(string agentName, string requestId, string verdict, string adminSteamId, string? editDiff = null, double? costUsd = null)
@@ -288,7 +390,7 @@ namespace Oxide.Plugins
         {
             if (arg.Args == null || arg.Args.Length < 1)
             {
-                Puts("Usage: sentinel.ai <accept|reject|edit|save> <suggestionId> [args...]");
+                Puts("Usage: sentinel.ai <accept|reject|edit|save|feedback> <suggestionId|requestId> [args...]");
                 return;
             }
 
@@ -363,6 +465,24 @@ namespace Oxide.Plugins
                     else
                     {
                         Puts($"[Sentinel] AI suggestion {saveId} saved and applied.");
+                    }
+                    break;
+
+                case "feedback":
+                    if (arg.Args.Length < 3)
+                    {
+                        Puts("[Sentinel] Usage: sentinel.ai feedback <requestId> <accept|reject>");
+                        return;
+                    }
+                    var feedbackRequestId = arg.Args[1];
+                    var feedbackVerdict = arg.Args[2];
+                    if (!ExecuteAiFeedback(admin, feedbackRequestId, feedbackVerdict, out var feedbackError))
+                    {
+                        Puts($"[Sentinel] AI feedback failed: {feedbackError}");
+                    }
+                    else
+                    {
+                        Puts($"[Sentinel] AI feedback recorded for {feedbackRequestId}: {feedbackVerdict}.");
                     }
                     break;
 

@@ -106,6 +106,21 @@ namespace Oxide.Plugins
                 durationMs: (int)sw.ElapsedMilliseconds
             );
 
+            // Create an AI suggestion so admins can thumbs-up/down the ban draft
+            var banDraftSuggestion = new AiSuggestion
+            {
+                Id = requestId,
+                PlayerName = playerName,
+                SteamId = playerSteamId,
+                Behavior = "ban_draft",
+                Confidence = result.HasCitation ? 85 : 60,
+                RecommendedAction = "ban",
+                Reason = result.Reason,
+                DurationMinutes = null,
+                AgentName = "BanDraft"
+            };
+            AddAiSuggestion(banDraftSuggestion);
+
             return result;
         }
 
