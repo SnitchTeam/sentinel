@@ -114,6 +114,7 @@ namespace Oxide.Plugins
             if (player == null) return;
 
             LoadPluginConfig();
+            ReloadWebServer();
 
             if (IsPanelOpen(player.UserIDString))
             {

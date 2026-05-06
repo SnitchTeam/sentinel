@@ -73,6 +73,7 @@ namespace Sentinel.Tests
             Assert.True(root.TryGetProperty("bans", out _));
             Assert.True(root.TryGetProperty("groups", out _));
             Assert.True(root.TryGetProperty("world", out _));
+            Assert.True(root.TryGetProperty("webPanel", out _));
         }
 
         [Fact]
@@ -188,7 +189,7 @@ namespace Sentinel.Tests
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            var requiredKeys = new[] { "database", "logging", "ai", "bans", "groups", "world" };
+            var requiredKeys = new[] { "database", "logging", "ai", "bans", "groups", "world", "webPanel" };
             foreach (var key in requiredKeys)
             {
                 Assert.True(root.TryGetProperty(key, out var prop), $"Missing key: {key}");
@@ -210,6 +211,7 @@ namespace Sentinel.Tests
             Assert.NotNull(plugin.PluginConfig.Bans);
             Assert.NotNull(plugin.PluginConfig.Groups);
             Assert.NotNull(plugin.PluginConfig.World);
+            Assert.NotNull(plugin.PluginConfig.WebPanel);
         }
 
         [Fact]

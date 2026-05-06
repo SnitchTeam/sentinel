@@ -20,11 +20,13 @@ namespace Oxide.Plugins
             InitializeAiCostTracker();
             InitializeLlmClient();
             InitializeDiscordRouter();
+            InitializeWebServer();
             EmitBootBanner();
         }
 
         private void Unload()
         {
+            StopWebServer();
             StopDiscordRouter();
             CloseDatabase();
         }

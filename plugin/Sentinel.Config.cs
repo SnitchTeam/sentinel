@@ -90,6 +90,14 @@ namespace Oxide.Plugins
         public int DailyDigestHour { get; set; } = 8;
     }
 
+    public class WebPanelConfig
+    {
+        public bool Enabled { get; set; } = true;
+        public int Port { get; set; } = 31002;
+        public string AuthToken { get; set; } = "";
+        public int RateLimitPerMinute { get; set; } = 60;
+    }
+
     public class SentinelConfig
     {
         public DatabaseConfig Database { get; set; } = new();
@@ -100,6 +108,7 @@ namespace Oxide.Plugins
         public WorldConfig World { get; set; } = new();
         public CuiPanelConfig Cui { get; set; } = new();
         public DiscordConfig Discord { get; set; } = new();
+        public WebPanelConfig WebPanel { get; set; } = new();
         public bool ByokKeyValid { get; set; }
     }
 
