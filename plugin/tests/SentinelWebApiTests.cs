@@ -815,6 +815,7 @@ namespace Sentinel.Tests
 
             var result = plugin.UpdateConfig("{\"bans\":{\"defaultDurationMinutes\":60}}");
             Assert.True(result.Success);
+            Assert.NotNull(plugin.PluginConfig);
             Assert.Equal(60, plugin.PluginConfig.Bans.DefaultDurationMinutes);
 
             try { File.Delete(configPath); } catch { }
