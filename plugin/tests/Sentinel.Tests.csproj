@@ -25,5 +25,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Sentinel.csproj" />
+    <ProjectReference Include="..\harness\Sentinel.AiHarness.csproj" />
   </ItemGroup>
 </Project>
