@@ -1,0 +1,113 @@
+name: Sentinel CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plugin:
+    name: Plugin Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ./plugin
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore NuGet packages
+        run: dotnet restore
+
+      - name: Build (Debug)
+        run: dotnet build --no-restore --configuration Debug
+
+      - name: Build (Release)
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run xUnit tests
+        run: dotnet test --no-build --verbosity normal --configuration Debug
+
+      - name: Upload Plugin Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinel-plugin
+          path: plugin/bin/Release/net8.0/Sentinel.dll
+          retention-days: 30
+
+  web-panel:
+    name: Web Panel Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ./web-panel
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./web-panel/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test with coverage
+        run: npx vitest run --coverage
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload Web Panel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinel-web-panel
+          path: web-panel/dist/
+          retention-days: 30
+
+  bundle:
+    name: Bundle Artifacts
+    needs: [plugin, web-panel]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download Plugin Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sentinel-plugin
+          path: ./bundle/
+
+      - name: Download Web Panel Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sentinel-web-panel
+          path: ./bundle/web-panel/
+
+      - name: Upload Combined Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinel-bundle
+          path: ./bundle/
+          retention-days: 30
