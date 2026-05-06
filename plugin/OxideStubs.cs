@@ -307,10 +307,31 @@ namespace Oxide.Plugins
         }
     }
 
+    public enum BUTTON
+    {
+        FORWARD = 1 << 0,
+        BACKWARD = 1 << 1,
+        LEFT = 1 << 2,
+        RIGHT = 1 << 3,
+        JUMP = 1 << 4,
+        DUCK = 1 << 5,
+        SPRINT = 1 << 6,
+        USE = 1 << 7,
+        FIRE_PRIMARY = 1 << 8,
+        FIRE_SECONDARY = 1 << 9,
+        RELOAD = 1 << 10,
+        FIRE_THIRD = 1 << 11,
+        MAP = 1 << 20
+    }
+
     public class InputState
     {
         public int current { get; set; }
         public int previous { get; set; }
+
+        public bool IsDown(BUTTON button) => (current & (int)button) != 0;
+        public bool WasDown(BUTTON button) => (previous & (int)button) != 0;
+        public bool WasJustPressed(BUTTON button) => IsDown(button) && !WasDown(button);
     }
 
     public static class CuiHelper

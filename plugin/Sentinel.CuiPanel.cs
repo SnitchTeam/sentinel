@@ -159,6 +159,26 @@ namespace Oxide.Plugins
                 _playersTyping.Remove(steamId);
         }
 
+        /// <summary>
+        /// Maps a hotkey string (e.g. "K", "J", "USE") to the corresponding
+        /// Rust BUTTON bitmask value.
+        /// </summary>
+        public int GetHotkeyButtonMask(string hotkey)
+        {
+            return hotkey?.ToUpperInvariant() switch
+            {
+                "K" => (int)BUTTON.MAP,
+                "J" => (int)BUTTON.JUMP,
+                "U" => (int)BUTTON.USE,
+                "R" => (int)BUTTON.RELOAD,
+                "E" => (int)BUTTON.USE,
+                "SPACE" => (int)BUTTON.JUMP,
+                "SHIFT" => (int)BUTTON.SPRINT,
+                "CTRL" => (int)BUTTON.DUCK,
+                _ => (int)BUTTON.MAP
+            };
+        }
+
         public void HandleHotkeyPress(BasePlayer player)
         {
             if (player == null) return;
@@ -170,6 +190,10 @@ namespace Oxide.Plugins
             // Do not trigger while the player is typing in chat or using another UI
             if (_playersTyping.Contains(player.UserIDString)) return;
 
+            // Read the configured hotkey and map it to the correct key code
+            var configuredHotkey = PluginConfig?.Cui?.Hotkey ?? "K";
+            var _ = GetHotkeyButtonMask(configuredHotkey);
+
             TogglePanel(player);
         }
 
@@ -180,11 +204,14 @@ namespace Oxide.Plugins
             // Fast path: if hotkeys are disabled globally, skip all input handling.
             if (PluginConfig?.Cui?.HotkeyEnabled == false) return;
 
-            // Performance optimization: when no panels are open and the player
-            // does not have panel permission, we can skip the hotkey check.
-            // Permission is still checked inside HandleHotkeyPress for safety.
-            // In a real Oxide runtime the InputState bitmask would be inspected
-            // for the configured hotkey before doing any heavier work.
+            // Inspect InputState bitmasks (current vs previous) to detect an
+            // actual key press of the configured hotkey.
+            var configuredHotkey = PluginConfig?.Cui?.Hotkey ?? "K";
+            var hotkeyMask = GetHotkeyButtonMask(configuredHotkey);
+
+            bool isPressed = (input.current & hotkeyMask) != 0 && (input.previous & hotkeyMask) == 0;
+            if (!isPressed) return;
+
             HandleHotkeyPress(player);
         }
 

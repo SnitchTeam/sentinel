@@ -593,6 +593,222 @@ namespace Sentinel.Tests
         }
 
         // -------------------------------------------------------------
+        // Hotkey Input State Tests
+        // -------------------------------------------------------------
+
+        [Fact]
+        public void Hotkey_OnPlayerInput_DetectsKeyPress()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            plugin.SetConfig(new SentinelConfig { Cui = new CuiPanelConfig { Hotkey = "K", HotkeyEnabled = true } });
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            // K is mapped to BUTTON.MAP = 1 << 20; current has bit, previous does not
+            var input = new InputState { current = 1 << 20, previous = 0 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.True(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_OnPlayerInput_IgnoresKeyHold()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            plugin.SetConfig(new SentinelConfig { Cui = new CuiPanelConfig { Hotkey = "K", HotkeyEnabled = true } });
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            // Key already held in previous frame — no press transition
+            var input = new InputState { current = 1 << 20, previous = 1 << 20 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.False(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_OnPlayerInput_IgnoresKeyRelease()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            plugin.SetConfig(new SentinelConfig { Cui = new CuiPanelConfig { Hotkey = "K", HotkeyEnabled = true } });
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            // Key released — bit was set in previous but not in current
+            var input = new InputState { current = 0, previous = 1 << 20 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.False(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_OnPlayerInput_IgnoresWrongKey()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            plugin.SetConfig(new SentinelConfig { Cui = new CuiPanelConfig { Hotkey = "K", HotkeyEnabled = true } });
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            // Wrong button pressed (JUMP instead of MAP)
+            var input = new InputState { current = (int)BUTTON.JUMP, previous = 0 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.False(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_ConfiguredHotkeyJ_Works()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            plugin.SetConfig(new SentinelConfig { Cui = new CuiPanelConfig { Hotkey = "J", HotkeyEnabled = true } });
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            // J is mapped to BUTTON.JUMP
+            var input = new InputState { current = (int)BUTTON.JUMP, previous = 0 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.True(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_ConfiguredHotkeyU_Works()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            plugin.SetConfig(new SentinelConfig { Cui = new CuiPanelConfig { Hotkey = "U", HotkeyEnabled = true } });
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            // U is mapped to BUTTON.USE
+            var input = new InputState { current = (int)BUTTON.USE, previous = 0 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.True(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_HandleHotkeyPress_ReadsConfiguredHotkey()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            plugin.SetConfig(new SentinelConfig { Cui = new CuiPanelConfig { Hotkey = "R", HotkeyEnabled = true } });
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            plugin.HandleHotkeyPress(player);
+
+            Assert.True(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_DefaultHotkeyK_WorksViaOnPlayerInput()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            // No custom config — default should be K
+            plugin.SetConfig(new SentinelConfig());
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            // Default K is mapped to BUTTON.MAP
+            var input = new InputState { current = (int)BUTTON.MAP, previous = 0 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.True(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_OnPlayerInput_DisabledInConfig_DoesNotTrigger()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            plugin.SetConfig(new SentinelConfig { Cui = new CuiPanelConfig { Hotkey = "K", HotkeyEnabled = false } });
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            var input = new InputState { current = (int)BUTTON.MAP, previous = 0 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.False(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_OnPlayerInput_WithoutPermission_DoesNotOpen()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            // No sentinel.panel granted
+            plugin.permission = perm;
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            var input = new InputState { current = (int)BUTTON.MAP, previous = 0 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.False(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        [Fact]
+        public void Hotkey_OnPlayerInput_WhileTyping_DoesNotTrigger()
+        {
+            var plugin = new PanelTestableSentinel();
+            var perm = new PanelMockPermission();
+            perm.Grant("76561198000000001", "sentinel.panel");
+            plugin.permission = perm;
+            plugin.SetPlayerTyping("76561198000000001", true);
+
+            var player = CreateTestPlayer("76561198000000001", "TestPlayer");
+            var method = GetCommandMethod("OnPlayerInput");
+            Assert.NotNull(method);
+
+            var input = new InputState { current = (int)BUTTON.MAP, previous = 0 };
+            method!.Invoke(plugin, new object[] { player, input });
+
+            Assert.False(plugin.IsPanelOpen("76561198000000001"));
+        }
+
+        // -------------------------------------------------------------
         // View Content Validation
         // -------------------------------------------------------------
 
