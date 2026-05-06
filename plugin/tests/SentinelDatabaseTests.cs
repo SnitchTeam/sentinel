@@ -73,7 +73,7 @@ namespace Sentinel.Tests
         public void Schema_CreatesExpectedTableCount()
         {
             var tables = GetTableNames();
-            Assert.Equal(8, tables.Count);
+            Assert.Equal(9, tables.Count);
         }
 
         [Fact]
@@ -87,6 +87,7 @@ namespace Sentinel.Tests
             Assert.Contains("sentinel_ai_log", tables);
             Assert.Contains("sentinel_baselines", tables);
             Assert.Contains("sentinel_warnings", tables);
+            Assert.Contains("sentinel_rules", tables);
         }
 
         [Fact]
@@ -180,13 +181,26 @@ namespace Sentinel.Tests
         }
 
         [Fact]
+        public void Schema_RulesTable_HasPrimaryKeyAndDomainColumns()
+        {
+            var columns = GetColumnNames("sentinel_rules");
+            Assert.Contains("id", columns);
+            Assert.Contains("rule_id", columns);
+            Assert.Contains("title", columns);
+            Assert.Contains("description", columns);
+            Assert.Contains("category", columns);
+            Assert.Contains("keywords", columns);
+            Assert.Contains("created_at", columns);
+        }
+
+        [Fact]
         public void Schema_IsIdempotent()
         {
             _plugin.CloseDatabase();
             _plugin.InitializeDatabase(_dbPath);
 
             var tables = GetTableNames();
-            Assert.Equal(8, tables.Count);
+            Assert.Equal(9, tables.Count);
         }
 
         [Fact]
@@ -208,6 +222,8 @@ namespace Sentinel.Tests
             Assert.Contains("idx_group_members_group", indexes);
             Assert.Contains("idx_baselines_steam_metric", indexes);
             Assert.Contains("idx_warnings_target_id", indexes);
+            Assert.Contains("idx_rules_rule_id", indexes);
+            Assert.Contains("idx_rules_category", indexes);
         }
     }
 }

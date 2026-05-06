@@ -139,6 +139,15 @@ namespace Oxide.Plugins
                     last_reason TEXT,
                     last_warned_at INTEGER NOT NULL,
                     created_at INTEGER NOT NULL
+                );",
+                @"CREATE TABLE IF NOT EXISTS sentinel_rules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    rule_id TEXT NOT NULL UNIQUE,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    category TEXT,
+                    keywords TEXT,
+                    created_at INTEGER NOT NULL
                 );"
             };
 
@@ -160,7 +169,9 @@ namespace Oxide.Plugins
                 "CREATE INDEX IF NOT EXISTS idx_group_members_steam ON sentinel_group_members(steam_id);",
                 "CREATE INDEX IF NOT EXISTS idx_ai_log_timestamp ON sentinel_ai_log(timestamp);",
                 "CREATE INDEX IF NOT EXISTS idx_baselines_steam_metric ON sentinel_baselines(steam_id, metric_name);",
-                "CREATE INDEX IF NOT EXISTS idx_warnings_target_id ON sentinel_warnings(target_id);"
+                "CREATE INDEX IF NOT EXISTS idx_warnings_target_id ON sentinel_warnings(target_id);",
+                "CREATE INDEX IF NOT EXISTS idx_rules_rule_id ON sentinel_rules(rule_id);",
+                "CREATE INDEX IF NOT EXISTS idx_rules_category ON sentinel_rules(category);"
             };
 
             foreach (var sql in indexes)
@@ -215,8 +226,66 @@ namespace Oxide.Plugins
             }
 
             CreateWorldStateSchema();
+            SeedDefaultRules();
 
             Puts("[Sentinel] Database schema initialized.");
+        }
+
+        private void SeedDefaultRules()
+        {
+            if (_dbConnection == null) return;
+
+            try
+            {
+                using var checkCmd = _dbConnection.CreateCommand();
+                checkCmd.CommandText = "SELECT COUNT(*) FROM sentinel_rules;";
+                var count = Convert.ToInt64(checkCmd.ExecuteScalar());
+                if (count > 0) return;
+            }
+            catch (Exception ex)
+            {
+                _runtimeBridge?.LogWarning($"[Sentinel] Rule seed check failed: {ex.Message}");
+                return;
+            }
+
+            var defaultRules = new[]
+            {
+                ("§1.1", "No Cheating", "Using third-party software, aimbots, ESP, wallhacks, or any form of cheating is strictly prohibited.", "Gameplay", "cheat,aimbot,esp,wallhack,hack,script,macro,recoil"),
+                ("§1.2", "No Exploits", "Abusing game bugs, glitches, or unintended mechanics to gain an unfair advantage is prohibited.", "Gameplay", "exploit,bug,glitch,clip,duplicate,duping,fly,undermesh"),
+                ("§1.3", "No Teaming in Solo", "Forming alliances or teaming with other players in solo game modes is not allowed.", "Gameplay", "team,alliance,solo,teamup,help,coop"),
+                ("§2.1", "No Toxicity", "Harassment, excessive trash talk, or targeted abuse towards other players is prohibited.", "Behavior", "toxic,harass,abuse,bully,threat,grief"),
+                ("§2.2", "No Hate Speech", "Racism, sexism, homophobia, slurs, or any form of hate speech will not be tolerated.", "Behavior", "racism,slur,hate,nazi,homophobic,sexism,discrimination"),
+                ("§2.3", "No Doxxing", "Sharing personal information about other players without consent is strictly forbidden.", "Behavior", "dox,private,info,address,phone,leak,personal"),
+                ("§3.1", "No Base Griefing", "Intentionally blocking, upgrading, or destroying another player's base without authorization is prohibited.", "Raiding", "grief,block,wall,tc,authorize,tool cupboard,building"),
+                ("§3.2", "No Offline Raid Abuse", "Repeatedly offline raiding the same target or using alt accounts to bypass raid limits is not allowed.", "Raiding", "offline,raid,alt,account,repeat,target"),
+                ("§4.1", "No Advertising", "Advertising other servers, services, or products in chat or via signs is prohibited.", "Chat", "advert,server,discord,promo,link,url,website"),
+                ("§4.2", "No Spam", "Excessive messaging, spamming chat, or using macros to flood communication channels is not allowed.", "Chat", "spam,flood,repeat,macro,chat,message,caps"),
+                ("§5.1", "No Alternate Accounts", "Using alternate accounts to evade bans, mutes, or raid limits is strictly prohibited.", "Accounts", "alt,alternate,evade,bypass,smurf,multi,account"),
+                ("§5.2", "No Account Sharing", "Sharing your Steam account or allowing others to play on your account is not permitted.", "Accounts", "share,account,steam,give,login,password")
+            };
+
+            try
+            {
+                foreach (var (ruleId, title, description, category, keywords) in defaultRules)
+                {
+                    using var cmd = _dbConnection.CreateCommand();
+                    cmd.CommandText = @"
+                        INSERT INTO sentinel_rules (rule_id, title, description, category, keywords, created_at)
+                        VALUES (@ruleId, @title, @description, @category, @keywords, @createdAt);";
+                    cmd.Parameters.AddWithValue("@ruleId", ruleId);
+                    cmd.Parameters.AddWithValue("@title", title);
+                    cmd.Parameters.AddWithValue("@description", description);
+                    cmd.Parameters.AddWithValue("@category", category);
+                    cmd.Parameters.AddWithValue("@keywords", keywords);
+                    cmd.Parameters.AddWithValue("@createdAt", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    cmd.ExecuteNonQuery();
+                }
+                Puts($"[Sentinel] Seeded {defaultRules.Length} default rules.");
+            }
+            catch (Exception ex)
+            {
+                _runtimeBridge?.LogWarning($"[Sentinel] Rule seeding failed: {ex.Message}");
+            }
         }
     }
 }
